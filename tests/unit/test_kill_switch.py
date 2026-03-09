@@ -80,3 +80,90 @@ def test_kill_switch_supports_duplicate_intent_and_unknown_open_order_paths() ->
     assert duplicate_intent_event.reason is KillSwitchReason.DUPLICATE_INTENT
     assert unknown_order_event is not None
     assert unknown_order_event.reason is KillSwitchReason.UNKNOWN_OPEN_ORDER
+
+
+def test_kill_switch_detects_unexpected_exposure_and_reject_rate_spike() -> None:
+    from quant_os.domain.enums import OrderSide, OrderStatus, OrderType, TimeInForce, KillSwitchReason
+    from quant_os.domain.models import LedgerSnapshot, OrderProjection, Position
+    from quant_os.risk.kill_switch import KillSwitch
+
+    as_of = datetime(2026, 3, 9, 15, 30, tzinfo=timezone.utc)
+    snapshot = LedgerSnapshot(
+        as_of=as_of,
+        base_currency="KRW",
+        cash_balance=Decimal("1000"),
+        positions={
+            "ZZZ": Position(
+                symbol="ZZZ",
+                quantity=Decimal("10"),
+                average_cost=Decimal("100"),
+                market_price=Decimal("110"),
+            )
+        },
+        realized_pnl=Decimal("0"),
+        unrealized_pnl=Decimal("100"),
+        total_pnl=Decimal("100"),
+        nav=Decimal("2000"),
+    )
+    orders = [
+        OrderProjection(
+            order_id=f"order_{index}",
+            intent_id=f"intent_{index}",
+            strategy_run_id="run_1",
+            symbol="AAA",
+            side=OrderSide.BUY,
+            order_type=OrderType.MARKET,
+            time_in_force=TimeInForce.DAY,
+            quantity=Decimal("1"),
+            status=OrderStatus.PRECHECK_REJECTED if index < 6 else OrderStatus.FILLED,
+            created_at=as_of,
+            updated_at=as_of,
+            filled_quantity=Decimal("0"),
+        )
+        for index in range(10)
+    ]
+    kill_switch = KillSwitch(
+        daily_loss_limit=Decimal("0.03"),
+        stale_market_data_seconds=3600,
+        allowed_symbols=("AAA",),
+        max_gross_exposure=Decimal("0.40"),
+        reject_rate_window=10,
+        reject_rate_threshold=Decimal("0.50"),
+    )
+
+    exposure_event = kill_switch.evaluate_unexpected_exposure(snapshot)
+    reject_event = kill_switch.evaluate_reject_rate_spike(orders, triggered_at=as_of)
+
+    assert exposure_event is not None
+    assert exposure_event.reason is KillSwitchReason.UNEXPECTED_EXPOSURE
+    assert reject_event is not None
+    assert reject_event.reason is KillSwitchReason.REJECT_RATE_SPIKE
+
+
+def test_kill_switch_restores_active_events_from_store(tmp_path) -> None:
+    from quant_os.db.store import OperationalStore
+    from quant_os.domain.enums import KillSwitchReason
+    from quant_os.domain.models import KillSwitchEvent
+    from quant_os.risk.kill_switch import KillSwitch
+
+    as_of = datetime(2026, 3, 9, 15, 30, tzinfo=timezone.utc)
+    store = OperationalStore(f"sqlite:///{tmp_path / 'kill_switch_restore.db'}")
+    store.create_schema()
+    store.save_kill_switch_event(
+        KillSwitchEvent(
+            event_id="killsw_restore_1",
+            reason=KillSwitchReason.RECONCILIATION_FAILURE,
+            triggered_at=as_of,
+            details={"summary": "stored mismatch"},
+            is_active=True,
+        )
+    )
+
+    restored = KillSwitch(
+        daily_loss_limit=Decimal("0.03"),
+        stale_market_data_seconds=3600,
+        store=store,
+    )
+
+    assert restored.can_submit_orders() is False
+    assert restored.active_events()[0].reason is KillSwitchReason.RECONCILIATION_FAILURE

@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from quant_os.db.base import Base
@@ -249,6 +250,8 @@ class OperationalStore:
                             {
                                 "code": issue.code,
                                 "message": issue.message,
+                                "severity": issue.severity,
+                                "recommended_action": issue.recommended_action,
                                 "details": issue.details,
                             }
                             for issue in result.issues
@@ -320,6 +323,45 @@ class OperationalStore:
             for record in records
         ]
 
+    def list_open_orders(self, limit: int = 100) -> list[OrderProjection]:
+        open_statuses = {
+            "planned",
+            "approved",
+            "submitting",
+            "acknowledged",
+            "working",
+            "partially_filled",
+            "cancel_requested",
+            "reconcile_pending",
+            "manual_intervention",
+        }
+        with self._session() as session:
+            records = session.scalars(
+                select(OrderRecord)
+                .where(OrderRecord.status.in_(open_statuses))
+                .order_by(OrderRecord.updated_at.desc(), OrderRecord.created_at.desc())
+                .limit(limit)
+            ).all()
+        return [
+            OrderProjection(
+                order_id=record.id,
+                intent_id=record.intent_id,
+                strategy_run_id=record.strategy_run_id,
+                symbol=record.symbol,
+                side=record.side,
+                order_type=record.order_type,
+                time_in_force=record.time_in_force,
+                quantity=record.quantity,
+                status=record.status,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+                filled_quantity=record.filled_quantity,
+                broker_order_id=record.broker_order_id,
+                last_event_at=record.last_event_at,
+            )
+            for record in records
+        ]
+
     def list_order_events(self, order_id: str) -> list[OrderEvent]:
         with self._session() as session:
             records = session.scalars(
@@ -366,6 +408,32 @@ class OperationalStore:
             for record in records
         ]
 
+    def list_recent_fills(self, limit: int = 500) -> list[FillEvent]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._session() as session:
+            records = session.scalars(
+                select(FillRecord).order_by(FillRecord.occurred_at.desc()).limit(limit)
+            ).all()
+        return [
+            FillEvent(
+                fill_id=record.id,
+                order_id=record.order_id,
+                intent_id=record.intent_id,
+                strategy_run_id=record.strategy_run_id,
+                symbol=record.symbol,
+                side=record.side,
+                quantity=record.quantity,
+                price=record.price,
+                fee=record.fee,
+                tax=record.tax,
+                occurred_at=record.occurred_at,
+                broker_fill_id=record.broker_fill_id,
+                raw_payload=record.raw_payload,
+            )
+            for record in reversed(records)
+        ]
+
     def latest_pnl_snapshot(self) -> LedgerSnapshot:
         with self._session() as session:
             pnl = session.scalars(select(PnlSnapshotRecord).order_by(PnlSnapshotRecord.snapshot_at.desc())).first()
@@ -399,6 +467,8 @@ class OperationalStore:
             ReconciliationIssue(
                 code=item["code"],
                 message=item["message"],
+                severity=item.get("severity", "error"),
+                recommended_action=item.get("recommended_action"),
                 details=item.get("details"),
             )
             for item in (record.details or {}).get("issues", [])
@@ -414,10 +484,15 @@ class OperationalStore:
         )
 
     def active_kill_switch_events(self) -> list[KillSwitchEvent]:
-        with self._session() as session:
-            records = session.scalars(
-                select(KillSwitchEventRecord).where(KillSwitchEventRecord.is_active.is_(True)).order_by(KillSwitchEventRecord.triggered_at)
-            ).all()
+        try:
+            with self._session() as session:
+                records = session.scalars(
+                    select(KillSwitchEventRecord)
+                    .where(KillSwitchEventRecord.is_active.is_(True))
+                    .order_by(KillSwitchEventRecord.triggered_at)
+                ).all()
+        except OperationalError:
+            return []
         return [
             KillSwitchEvent(
                 event_id=record.id,

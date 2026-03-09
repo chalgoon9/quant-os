@@ -184,11 +184,14 @@ class ExternalStateSnapshot(ImmutableModel):
     cash_balance: Decimal
     positions: tuple[Position, ...] = ()
     open_orders: tuple[OrderProjection, ...] = ()
+    fills: tuple[FillEvent, ...] = ()
 
 
 class ReconciliationIssue(ImmutableModel):
     code: str
     message: str
+    severity: str = "error"
+    recommended_action: str | None = None
     details: dict[str, object] | None = None
 
 
@@ -286,6 +289,15 @@ class ControlSettings(ImmutableModel):
     reconciliation_cash_tolerance: Decimal = Field(ge=ZERO, default=ZERO)
     reconciliation_position_tolerance: Decimal = Field(ge=ZERO, default=ZERO)
     stale_market_data_seconds: int = Field(gt=0)
+    reject_rate_window: int = Field(gt=0, default=20)
+    reject_rate_threshold: Decimal = Field(gt=ZERO, le=ONE, default=Decimal("0.50"))
+    max_gross_exposure: Decimal = Field(gt=ZERO, default=ONE)
+
+
+class LiveSettings(ImmutableModel):
+    upbit_access_key_env: str = "UPBIT_ACCESS_KEY"
+    upbit_secret_key_env: str = "UPBIT_SECRET_KEY"
+    upbit_api_base_url: str = "https://api.upbit.com"
 
 
 class SystemConfig(ImmutableModel):
@@ -299,6 +311,7 @@ class SystemConfig(ImmutableModel):
     intent: IntentPolicy
     backtest: BacktestSettings
     controls: ControlSettings
+    live: LiveSettings
     storage: StorageSettings
 
 

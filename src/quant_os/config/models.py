@@ -10,6 +10,7 @@ from quant_os.domain.models import (
     BacktestSettings,
     ControlSettings,
     IntentPolicy,
+    LiveSettings,
     ResearchSettings,
     RiskPolicy,
     StorageSettings,
@@ -93,6 +94,15 @@ class ControlsSection(ConfigModel):
     reconciliation_cash_tolerance: Decimal = Field(ge=0, default=0)
     reconciliation_position_tolerance: Decimal = Field(ge=0, default=0)
     stale_market_data_seconds: int = Field(gt=0)
+    reject_rate_window: int = Field(gt=0, default=20)
+    reject_rate_threshold: Decimal = Field(gt=0, le=1, default=Decimal("0.50"))
+    max_gross_exposure: Decimal = Field(gt=0, default=Decimal("1.00"))
+
+
+class LiveSection(ConfigModel):
+    upbit_access_key_env: str = "UPBIT_ACCESS_KEY"
+    upbit_secret_key_env: str = "UPBIT_SECRET_KEY"
+    upbit_api_base_url: str = "https://api.upbit.com"
 
 
 class AppSettings(ConfigModel):
@@ -104,6 +114,7 @@ class AppSettings(ConfigModel):
     intent: IntentSection
     backtest: BacktestSection
     controls: ControlsSection
+    live: LiveSection = LiveSection()
     storage: StorageSection
 
     @model_validator(mode="after")
@@ -163,6 +174,14 @@ class AppSettings(ConfigModel):
                 reconciliation_cash_tolerance=self.controls.reconciliation_cash_tolerance,
                 reconciliation_position_tolerance=self.controls.reconciliation_position_tolerance,
                 stale_market_data_seconds=self.controls.stale_market_data_seconds,
+                reject_rate_window=self.controls.reject_rate_window,
+                reject_rate_threshold=self.controls.reject_rate_threshold,
+                max_gross_exposure=self.controls.max_gross_exposure,
+            ),
+            live=LiveSettings(
+                upbit_access_key_env=self.live.upbit_access_key_env,
+                upbit_secret_key_env=self.live.upbit_secret_key_env,
+                upbit_api_base_url=self.live.upbit_api_base_url,
             ),
             storage=StorageSettings(
                 operational_db_url=self.storage.operational_db_url,

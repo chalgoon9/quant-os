@@ -171,6 +171,17 @@ class OrderStateMachine:
         self._projections[fill.order_id] = updated
         return updated
 
+    def hydrate_projection(
+        self,
+        projection: OrderProjection,
+        *,
+        events: tuple[OrderEvent, ...] = (),
+        fills: tuple[FillEvent, ...] = (),
+    ) -> None:
+        self._projections[projection.order_id] = projection
+        self._events[projection.order_id] = list(sorted(events, key=lambda event: event.occurred_at))
+        self._fills[projection.order_id] = list(sorted(fills, key=lambda fill: fill.occurred_at))
+
     def get_projection(self, order_id: str) -> OrderProjection:
         if order_id not in self._projections:
             raise KeyError(f"unknown order: {order_id}")
@@ -181,3 +192,6 @@ class OrderStateMachine:
 
     def fills(self, order_id: str) -> tuple[FillEvent, ...]:
         return tuple(self._fills.get(order_id, ()))
+
+    def projections(self) -> tuple[OrderProjection, ...]:
+        return tuple(sorted(self._projections.values(), key=lambda projection: projection.updated_at))

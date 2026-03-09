@@ -9,9 +9,11 @@ from quant_os.adapters.paper import PaperAdapter, PaperExecutionPolicy
 from quant_os.db.store import OperationalStore
 from quant_os.domain.enums import OrderStatus, TradingMode
 from quant_os.domain.ids import new_id
-from quant_os.domain.models import FillEvent, OrderEvent, OrderIntent, PortfolioState, SubmitResult
+from quant_os.domain.models import ExternalStateSnapshot, FillEvent, OrderEvent, OrderIntent, PortfolioState, ReconciliationResult, SubmitResult
 from quant_os.domain.types import ZERO, quantize
 from quant_os.execution.state_machine import OrderStateMachine
+from quant_os.reconciliation.service import PortfolioReconciler
+from quant_os.risk.kill_switch import KillSwitch
 
 
 @dataclass(frozen=True)
@@ -19,6 +21,8 @@ class ShadowReportLine:
     intent_id: str
     order_id: str
     symbol: str
+    venue_check_passed: bool
+    venue_check_reason: str | None
     final_status: OrderStatus
     filled_quantity: Decimal
 
@@ -29,7 +33,21 @@ class ShadowRunReport:
     venue: str
     simulated_order_count: int
     simulated_fill_count: int
+    venue_rejection_count: int
     lines: tuple[ShadowReportLine, ...]
+
+
+@dataclass(frozen=True)
+class ShadowComparisonReport:
+    mode: TradingMode
+    venue: str
+    simulated_order_count: int
+    simulated_fill_count: int
+    venue_rejection_count: int
+    lines: tuple[ShadowReportLine, ...]
+    reconciliation: ReconciliationResult
+    local_fill_count: int
+    external_fill_count: int
 
 
 class ShadowAdapter:
@@ -44,6 +62,7 @@ class ShadowAdapter:
         lot_size: Decimal = Decimal("1"),
         min_notional: Decimal = ZERO,
         store: OperationalStore | None = None,
+        kill_switch: KillSwitch | None = None,
     ) -> None:
         self._venue = venue
         self._store = store
@@ -56,6 +75,7 @@ class ShadowAdapter:
             execution_policy=execution_policy,
             store=store,
             adapter_name="shadow",
+            kill_switch=kill_switch,
         )
         self._rejections = OrderStateMachine()
         self._rejection_events: list[OrderEvent] = []
@@ -74,7 +94,14 @@ class ShadowAdapter:
                 reason=rejection_reason,
             )
             self._record_rejection_event(rejected_event)
-            self._report_lines.append(self._build_line(intent.intent_id, order_id))
+            self._report_lines.append(
+                self._build_line(
+                    intent.intent_id,
+                    order_id,
+                    venue_check_passed=False,
+                    venue_check_reason=rejection_reason,
+                )
+            )
             return SubmitResult(
                 accepted=False,
                 order_id=order_id,
@@ -83,7 +110,14 @@ class ShadowAdapter:
             )
         result = self._paper.submit_intent(intent)
         if result.order_id is not None:
-            self._report_lines.append(self._build_line(intent.intent_id, result.order_id))
+            self._report_lines.append(
+                self._build_line(
+                    intent.intent_id,
+                    result.order_id,
+                    venue_check_passed=True,
+                    venue_check_reason=None,
+                )
+            )
         return result
 
     def cancel_order(self, order_id: str) -> None:
@@ -106,10 +140,62 @@ class ShadowAdapter:
             venue=self._venue,
             simulated_order_count=len(self._report_lines),
             simulated_fill_count=simulated_fill_count,
+            venue_rejection_count=sum(1 for line in self._report_lines if not line.venue_check_passed),
             lines=tuple(self._report_lines),
         )
 
-    def _build_line(self, intent_id: str, order_id: str) -> ShadowReportLine:
+    def compare_with_external_state(
+        self,
+        *,
+        external_state: ExternalStateSnapshot,
+        cash_tolerance: Decimal,
+        position_tolerance: Decimal,
+    ) -> ShadowComparisonReport:
+        reconciler = PortfolioReconciler(
+            cash_tolerance=cash_tolerance,
+            position_tolerance=position_tolerance,
+        )
+        local_fills = tuple(event for event in self.sync_events(None) if isinstance(event, FillEvent))
+        local_open_orders = tuple(
+            projection
+            for projection in self._paper.list_order_projections()
+            if projection.status
+            not in {
+                OrderStatus.FILLED,
+                OrderStatus.CANCELLED,
+                OrderStatus.CANCELLED_PARTIAL,
+                OrderStatus.EXPIRED,
+                OrderStatus.BROKER_REJECTED,
+                OrderStatus.PRECHECK_REJECTED,
+                OrderStatus.BUSTED,
+            }
+        )
+        reconciliation = reconciler.reconcile(
+            local_portfolio=self.get_portfolio_state(),
+            external_state=external_state,
+            local_open_orders=local_open_orders,
+            local_fills=local_fills,
+        )
+        return ShadowComparisonReport(
+            mode=TradingMode.SHADOW,
+            venue=self._venue,
+            simulated_order_count=len(self._report_lines),
+            simulated_fill_count=len(local_fills),
+            venue_rejection_count=sum(1 for line in self._report_lines if not line.venue_check_passed),
+            lines=tuple(self._report_lines),
+            reconciliation=reconciliation,
+            local_fill_count=len(local_fills),
+            external_fill_count=len(external_state.fills),
+        )
+
+    def _build_line(
+        self,
+        intent_id: str,
+        order_id: str,
+        *,
+        venue_check_passed: bool,
+        venue_check_reason: str | None,
+    ) -> ShadowReportLine:
         final_status = OrderStatus.PLANNED
         filled_quantity = ZERO
         symbol = ""
@@ -123,6 +209,8 @@ class ShadowAdapter:
             intent_id=intent_id,
             order_id=order_id,
             symbol=symbol,
+            venue_check_passed=venue_check_passed,
+            venue_check_reason=venue_check_reason,
             final_status=final_status,
             filled_quantity=filled_quantity,
         )
@@ -143,6 +231,8 @@ class ShadowAdapter:
 
         price = self.get_portfolio_state().market_prices.get(intent.symbol)
         if price is None:
+            if self._min_notional > ZERO:
+                return "missing market price for venue notional validation"
             return None
         notional = quantize(intent.quantity * price, "0.0000")
         if self._min_notional > ZERO and notional < self._min_notional:

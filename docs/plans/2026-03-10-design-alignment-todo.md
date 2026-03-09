@@ -10,6 +10,12 @@
 - `P1`: 실거래 직전 수준으로 가기 위해 필요한 차이. `P0` 다음.
 - `P2`: 운영성/완성도를 높이지만 지금 당장 핵심은 아닌 차이.
 
+상태 요약:
+
+- `P0`: 완료
+- `P1`: 구현 완료, 리뷰 후속 보강 남음
+- `P2`: 남음
+
 현재 원칙:
 
 - 새 프론트 polish 작업은 중단한다.
@@ -86,7 +92,14 @@
 
 ## P1
 
+주석:
+
+- 아래 4개 항목의 기능 구현은 끝났다.
+- 다만 구현 후 리뷰에서 `live fail-closed`, `shadow realism`, `reconciliation identity`, `restart recovery` 관련 후속 보강이 추가로 식별됐다.
+
 ### 5. 실제 live adapter 1개 연결
+
+상태: 완료
 
 목표:
 
@@ -104,6 +117,8 @@
 
 ### 6. shadow-live 완성
 
+상태: 완료
+
 목표:
 
 - 실제 제출 없는 dry-run 경로를 유지하되, 실제 시장 데이터와 venue rule을 더 엄밀히 반영한다.
@@ -119,6 +134,8 @@
 - shadow 전용 test가 강화된다.
 
 ### 7. reconciliation 범위 확장
+
+상태: 완료
 
 목표:
 
@@ -136,6 +153,8 @@
 - unknown open order, unknown fill을 kill switch와 연결한다.
 
 ### 8. kill switch 조건 보강
+
+상태: 완료
 
 목표:
 
@@ -217,12 +236,8 @@
 2. `P0-2 normalization/quarantine`
 3. `P0-3 strategy run registry`
 4. `P0-4 backtest timing realism`
-5. `P1-7 reconciliation 확장`
-6. `P1-8 kill switch 보강`
-7. `P1-5 live adapter 1개`
-8. `P1-6 shadow-live 완성`
-9. `P2-9 PostgreSQL 기본값 정리`
-10. `P2-10/11 report + scheduler + replay`
+5. `P2-9 PostgreSQL 기본값 정리`
+6. `P2-10/11 report + scheduler + replay`
 
 ## 판단
 
@@ -233,3 +248,4 @@
 - 사용자 표면 확장보다 설계 정합성 우선
 - 빠른 편의보다 raw/event/source-of-truth 우선
 - live 준비 전 raw 저장, reconciliation, kill switch를 먼저 고정
+- 현재는 `P2` 항목 위주로 마무리하면 된다

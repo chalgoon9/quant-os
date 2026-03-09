@@ -136,3 +136,51 @@ def test_paper_adapter_marks_uncertain_submit_reconcile_pending(tmp_path) -> Non
     assert result.accepted is False
     assert store.get_order_projection(result.order_id).status is OrderStatus.RECONCILE_PENDING
     assert store.list_fills(result.order_id) == []
+
+
+def test_paper_adapter_blocks_submit_when_kill_switch_is_active() -> None:
+    from quant_os.adapters.paper import PaperAdapter
+    from quant_os.domain.enums import KillSwitchReason, OrderSide, OrderStatus, OrderType
+    from quant_os.domain.models import OrderIntent, PortfolioState
+    from quant_os.risk.kill_switch import KillSwitch
+
+    as_of = datetime(2026, 3, 9, 9, 0, tzinfo=timezone.utc)
+    kill_switch = KillSwitch(
+        daily_loss_limit=Decimal("0.03"),
+        stale_market_data_seconds=3600,
+    )
+    kill_switch.trigger(
+        reason=KillSwitchReason.RECONCILIATION_FAILURE,
+        triggered_at=as_of,
+        details={"summary": "mismatch"},
+    )
+    adapter = PaperAdapter(
+        PortfolioState(
+            as_of=as_of,
+            base_currency="KRW",
+            cash_balance=Decimal("100000"),
+            net_asset_value=Decimal("100000"),
+            positions=(),
+            market_prices={"AAA": Decimal("100")},
+        ),
+        kill_switch=kill_switch,
+    )
+    intent = OrderIntent(
+        intent_id="intent_blocked_1",
+        strategy_run_id="run_blocked_1",
+        symbol="AAA",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        order_type=OrderType.MARKET,
+    )
+
+    result = adapter.submit_intent(intent)
+    events = list(adapter.sync_events(None))
+
+    assert result.accepted is False
+    assert result.status is OrderStatus.PRECHECK_REJECTED
+    assert result.message == "kill switch active"
+    assert [event.status for event in events if hasattr(event, "status")] == [
+        OrderStatus.PLANNED,
+        OrderStatus.PRECHECK_REJECTED,
+    ]

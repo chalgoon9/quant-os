@@ -8,10 +8,11 @@ from typing import Iterable
 from quant_os.db.store import OperationalStore
 from quant_os.domain.enums import OrderSide, OrderStatus
 from quant_os.domain.ids import new_id
-from quant_os.domain.models import FillEvent, OrderEvent, OrderIntent, PortfolioState, SubmitResult
+from quant_os.domain.models import FillEvent, OrderEvent, OrderIntent, OrderProjection, PortfolioState, SubmitResult
 from quant_os.domain.types import ZERO, quantize
 from quant_os.execution.state_machine import OrderStateMachine
 from quant_os.ledger.projector import LedgerProjector
+from quant_os.risk.kill_switch import KillSwitch
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class PaperAdapter:
         execution_policy: PaperExecutionPolicy | None = None,
         store: OperationalStore | None = None,
         adapter_name: str = "paper",
+        kill_switch: KillSwitch | None = None,
     ) -> None:
         self._clock = initial_portfolio.as_of
         self._commission_bps = quantize(commission_bps, "0.0000")
@@ -43,6 +45,7 @@ class PaperAdapter:
         self._execution_policy = execution_policy or PaperExecutionPolicy()
         self._store = store
         self._adapter_name = adapter_name
+        self._kill_switch = kill_switch
         self._market_prices = dict(initial_portfolio.market_prices)
         self._state_machine = OrderStateMachine()
         self._ledger = LedgerProjector(
@@ -56,6 +59,11 @@ class PaperAdapter:
     def submit_intent(self, intent: OrderIntent) -> SubmitResult:
         order_id = self._intent_to_order.get(intent.intent_id)
         if order_id is not None:
+            if self._kill_switch is not None:
+                self._kill_switch.evaluate_duplicate_intent(
+                    intent_id=intent.intent_id,
+                    triggered_at=self._tick(),
+                )
             return SubmitResult(
                 accepted=False,
                 order_id=order_id,
@@ -68,6 +76,21 @@ class PaperAdapter:
 
         planned_event = self._state_machine.plan(intent, order_id=order_id, occurred_at=self._tick())
         self._record_order_event(planned_event)
+
+        if self._kill_switch is not None and not self._kill_switch.can_submit_orders():
+            rejected = self._state_machine.transition(
+                order_id,
+                OrderStatus.PRECHECK_REJECTED,
+                occurred_at=self._tick(),
+                reason="kill switch active",
+            )
+            self._record_order_event(rejected)
+            return SubmitResult(
+                accepted=False,
+                order_id=order_id,
+                status=OrderStatus.PRECHECK_REJECTED,
+                message="kill switch active",
+            )
 
         price = self._market_prices.get(intent.symbol)
         if price is None or price <= ZERO:
@@ -189,6 +212,9 @@ class PaperAdapter:
 
     def get_portfolio_state(self) -> PortfolioState:
         return self._ledger.portfolio_state(self._clock, self._market_prices)
+
+    def list_order_projections(self) -> tuple[OrderProjection, ...]:
+        return self._state_machine.projections()
 
     def _record_order_event(self, event: OrderEvent) -> None:
         self._ledger.apply_order_event(event)

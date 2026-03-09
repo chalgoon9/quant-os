@@ -6,7 +6,7 @@ from decimal import Decimal
 from quant_os.db.store import OperationalStore
 from quant_os.domain.enums import KillSwitchReason, ReconciliationStatus
 from quant_os.domain.ids import new_id
-from quant_os.domain.models import KillSwitchEvent, LedgerSnapshot, ReconciliationResult
+from quant_os.domain.models import KillSwitchEvent, LedgerSnapshot, OrderProjection, ReconciliationResult
 from quant_os.domain.types import ZERO, quantize
 
 
@@ -16,13 +16,22 @@ class KillSwitch:
         *,
         daily_loss_limit: Decimal,
         stale_market_data_seconds: int,
+        allowed_symbols: tuple[str, ...] = (),
+        max_gross_exposure: Decimal = Decimal("1"),
+        reject_rate_window: int = 20,
+        reject_rate_threshold: Decimal = Decimal("0.50"),
         store: OperationalStore | None = None,
     ) -> None:
         self.daily_loss_limit = quantize(daily_loss_limit, "0.0000")
         self.stale_market_data_seconds = stale_market_data_seconds
+        self.allowed_symbols = tuple(symbol.upper() for symbol in allowed_symbols)
+        self.max_gross_exposure = quantize(max_gross_exposure, "0.0000")
+        self.reject_rate_window = reject_rate_window
+        self.reject_rate_threshold = quantize(reject_rate_threshold, "0.0000")
         self._store = store
         self._active_by_reason: dict[KillSwitchReason, KillSwitchEvent] = {}
         self._history: list[KillSwitchEvent] = []
+        self._hydrate_from_store()
 
     def evaluate_daily_loss(self, *, snapshot: LedgerSnapshot, start_of_day_nav: Decimal) -> KillSwitchEvent | None:
         if start_of_day_nav <= ZERO:
@@ -112,6 +121,60 @@ class KillSwitch:
             details={"order_ids": list(order_ids)},
         )
 
+    def evaluate_unexpected_exposure(self, snapshot: LedgerSnapshot) -> KillSwitchEvent | None:
+        gross_exposure = ZERO
+        unexpected_symbols: list[str] = []
+        for position in snapshot.positions.values():
+            price = position.market_price or position.average_cost
+            if snapshot.nav > ZERO:
+                gross_exposure += abs(quantize((position.quantity * price) / snapshot.nav, "0.0001"))
+            if self.allowed_symbols and position.symbol.upper() not in self.allowed_symbols:
+                unexpected_symbols.append(position.symbol)
+            if position.quantity < ZERO:
+                unexpected_symbols.append(position.symbol)
+        gross_exposure = quantize(gross_exposure, "0.0001")
+        if not unexpected_symbols and gross_exposure <= self.max_gross_exposure:
+            return None
+        return self.trigger(
+            reason=KillSwitchReason.UNEXPECTED_EXPOSURE,
+            triggered_at=snapshot.as_of,
+            trigger_value=gross_exposure,
+            threshold_value=self.max_gross_exposure,
+            details={
+                "unexpected_symbols": sorted(set(unexpected_symbols)),
+                "gross_exposure": str(gross_exposure),
+            },
+        )
+
+    def evaluate_reject_rate_spike(self, orders: list[OrderProjection], *, triggered_at: datetime) -> KillSwitchEvent | None:
+        if not orders:
+            return None
+        sample = sorted(
+            orders,
+            key=lambda order: (order.updated_at, order.created_at),
+            reverse=True,
+        )[: self.reject_rate_window]
+        if len(sample) < min(5, self.reject_rate_window):
+            return None
+        rejected = sum(
+            1
+            for order in sample
+            if order.status.value in {"precheck_rejected", "broker_rejected"}
+        )
+        reject_rate = quantize(Decimal(rejected) / Decimal(len(sample)), "0.0001")
+        if reject_rate <= self.reject_rate_threshold:
+            return None
+        return self.trigger(
+            reason=KillSwitchReason.REJECT_RATE_SPIKE,
+            triggered_at=triggered_at,
+            trigger_value=reject_rate,
+            threshold_value=self.reject_rate_threshold,
+            details={
+                "sample_size": len(sample),
+                "rejected_orders": rejected,
+            },
+        )
+
     def trigger(
         self,
         *,
@@ -162,3 +225,13 @@ class KillSwitch:
 
     def event_history(self) -> tuple[KillSwitchEvent, ...]:
         return tuple(self._history)
+
+    def _hydrate_from_store(self) -> None:
+        if self._store is None:
+            return
+        for event in self._store.active_kill_switch_events():
+            existing = self._active_by_reason.get(event.reason)
+            if existing is not None and existing.triggered_at >= event.triggered_at:
+                continue
+            self._active_by_reason[event.reason] = event
+        self._history = sorted(self._active_by_reason.values(), key=lambda event: event.triggered_at)

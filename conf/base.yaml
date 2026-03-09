@@ -53,6 +53,14 @@ controls:
   reconciliation_cash_tolerance: "1"
   reconciliation_position_tolerance: "0.001"
   stale_market_data_seconds: 86400
+  reject_rate_window: 20
+  reject_rate_threshold: "0.50"
+  max_gross_exposure: "1.00"
+
+live:
+  upbit_access_key_env: UPBIT_ACCESS_KEY
+  upbit_secret_key_env: UPBIT_SECRET_KEY
+  upbit_api_base_url: https://api.upbit.com
 
 storage:
   operational_db_url: sqlite:///./var/quant_os.db

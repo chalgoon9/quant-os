@@ -119,6 +119,8 @@ class OrderDetailResponse(ApiModel):
 class ReconciliationIssueResponse(ApiModel):
     code: str
     message: str
+    severity: str
+    recommended_action: str | None = None
     details: dict[str, object] | None = None
 
 
@@ -309,7 +311,13 @@ def reconciliation_from_domain(result: ReconciliationResult) -> ReconciliationRe
         requires_manual_intervention=result.requires_manual_intervention,
         summary=result.summary,
         issues=[
-            ReconciliationIssueResponse(code=issue.code, message=issue.message, details=issue.details)
+            ReconciliationIssueResponse(
+                code=issue.code,
+                message=issue.message,
+                severity=issue.severity,
+                recommended_action=issue.recommended_action,
+                details=issue.details,
+            )
             for issue in result.issues
         ],
     )

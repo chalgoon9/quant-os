@@ -178,12 +178,13 @@ OrderIntent
 
 - `paper` -> `PaperAdapter`
 - `shadow` -> `ShadowAdapter`
-- `live` -> `StubLiveAdapter`
+- `live` -> `UpbitLiveAdapter` 또는 `StubLiveAdapter`
 
 주의:
 
-- 현재 `live`는 실제 broker에 연결되지 않았습니다.
-- `StubLiveAdapter`는 fail-closed stub이며 실거래를 수행하지 않습니다.
+- `live`는 `venue=upbit` 와 필요한 환경변수가 모두 있으면 `UpbitLiveAdapter`를 사용합니다.
+- 조건이 맞지 않으면 `StubLiveAdapter`가 fail-closed fallback으로 동작합니다.
+- tiny live 전에는 소량 smoke test와 reconciliation 확인이 먼저 필요합니다.
 
 현재 execution behavior:
 
@@ -418,4 +419,4 @@ Browser SPA
 
 ## 17. 한 줄 요약
 
-현재 `quant-os`의 전체 워크플로우는 `read-only market data -> strategy/risk/intent -> paper/shadow execution -> append-only ops persistence -> reconciliation/kill-switch/reporting -> dashboard` 까지는 닫혀 있고, `실제 broker live execution`만 아직 비어 있습니다.
+현재 `quant-os`의 전체 워크플로우는 `read-only market data -> strategy/risk/intent -> paper/shadow/live execution -> append-only ops persistence -> reconciliation/kill-switch/reporting -> dashboard` 까지는 닫혀 있습니다. 남은 차이는 `운영 기본값의 PostgreSQL 정렬`, `weekly/alert reporting`, `scheduler/replay/runbook` 쪽입니다.

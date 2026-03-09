@@ -177,12 +177,14 @@ trade_count=12
 - `shadow`
   - paper 경로를 재사용하되 shadow report와 venue-rule precheck를 포함
 - `live`
-  - 현재는 실제 broker 연결이 없는 fail-closed stub
+  - `venue=upbit` 이고 필요한 환경변수가 있으면 `UpbitLiveAdapter`
+  - 그렇지 않으면 fail-closed fallback stub
 
 중요:
 
-- 현재 `live`는 실거래가 아닙니다.
-- 실제 broker `LiveAdapter`와 external sync/reconciliation이 아직 없으므로 live 제출 용도로 사용하면 안 됩니다.
+- 기본 설정은 `paper` 이며, `live`는 명시적으로 켜야 합니다.
+- Upbit 자격 증명이 없으면 `live`는 자동으로 fail-closed stub로 남습니다.
+- tiny live 전에는 소량 smoke test와 reconciliation 확인이 먼저 필요합니다.
 
 ## 8. API 백엔드 실행
 
@@ -270,10 +272,9 @@ systemctl --user status quant-os.service
 
 ## 11. 현재 불가능하거나 미완성인 것
 
-- 실제 broker 주문 제출
-- broker 잔고/체결/open order 동기화
-- live reconciliation 실연결
-- tiny live 운영
+- venue별 live adapter 추가 확장
+- weekly report / alert summary
+- scheduler / replay / runbook 보강
 
 ## 12. 문서 위치
 

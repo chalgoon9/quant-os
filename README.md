@@ -27,10 +27,10 @@
 - order events와 fills로부터 projection을 구성하는 주문 상태 머신
 - cash ledger, inventory lots, PnL snapshot을 지원하는 ledger projector
 - 내부 상태와 외부 상태를 비교하는 reconciliation 서비스
-- 일일 손실, stale market data, reconciliation failure에 반응하는 fail-closed kill switch
+- 일일 손실, stale market data, reconciliation failure, unexpected exposure, reject rate spike에 반응하는 fail-closed kill switch
 - NAV, 현금, 손익, reconciliation, kill-switch 상태를 요약하는 daily report generator
-- paper 실행 경로를 재사용하면서 venue-rule precheck와 shadow reporting을 제공하는 shadow adapter skeleton
-- 공통 실행 계약을 유지하는 live adapter base와 fail-closed stub
+- paper 실행 경로를 재사용하면서 venue-rule precheck, external state comparison, shadow reporting을 제공하는 shadow adapter
+- Upbit venue에 대해 submit/cancel/sync/portfolio state를 연결하는 live adapter와 fail-closed fallback stub
 - 회원가입 없이 쓸 수 있는 Upbit Quotation API 기반 read-only 일봉 데이터 수집
 - Upbit 수집 시 raw payload 선보존, validation report, quarantine artifact 기록
 - import, config, migration, research store, strategy pipeline, backtest, execution, reconciliation, kill switch, reporting, shadow, simulation에 대한 pytest 검증
@@ -133,9 +133,9 @@ quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 
 - `paper` -> `PaperAdapter`
 - `shadow` -> `ShadowAdapter`
-- `live` -> `StubLiveAdapter`
+- `live` -> `UpbitLiveAdapter` 또는 `StubLiveAdapter`
 
-`StubLiveAdapter`는 의도적으로 fail-closed입니다. 실제 broker adapter가 추가되기 전까지는 live 제출을 조용히 진행하지 않고, append-only order event를 남기며 거절합니다.
+`live` 모드는 기본적으로 fail-closed입니다. `venue=upbit` 이고 필요한 환경변수가 있으면 `UpbitLiveAdapter`를 사용하고, 그렇지 않으면 `StubLiveAdapter`가 append-only order event를 남기며 거절합니다.
 
 현재 simulation 검증 범위:
 
@@ -239,7 +239,9 @@ chmod +x scripts/install_user_service.sh
 
 이후 우선순위는 아래에 두는 것이 맞습니다.
 
-- venue별 live adapter 구현
+- PostgreSQL 운영 기본값 정리
+- weekly review / alert-ready summary 추가
+- scheduler / replay / runbook 보강
 - timeout, duplicate, out-of-order event 경로에 대한 simulation 확대
 - shadow/live 비교 리포트 보강
 - execution recovery를 위한 restart/replay 보강

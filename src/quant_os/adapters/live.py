@@ -8,6 +8,7 @@ from quant_os.domain.enums import OrderStatus
 from quant_os.domain.ids import new_id
 from quant_os.domain.models import FillEvent, OrderEvent, OrderIntent, PortfolioState, SubmitResult
 from quant_os.execution.state_machine import OrderStateMachine
+from quant_os.risk.kill_switch import KillSwitch
 
 
 class LiveAdapterBase:
@@ -16,10 +17,12 @@ class LiveAdapterBase:
         initial_portfolio: PortfolioState,
         *,
         store: OperationalStore | None = None,
+        kill_switch: KillSwitch | None = None,
     ) -> None:
         self._clock = initial_portfolio.as_of
         self._portfolio = initial_portfolio
         self._store = store
+        self._kill_switch = kill_switch
         self._state_machine = OrderStateMachine()
         self._event_log: list[OrderEvent | FillEvent] = []
         self._intent_to_order: dict[str, str] = {}
@@ -46,9 +49,29 @@ class LiveAdapterBase:
             projection_source_event_id=event.event_id,
         )
 
+    def _record_fill(self, fill: FillEvent) -> None:
+        self._state_machine.record_fill(fill)
+        self._event_log.append(fill)
+        if self._store is None:
+            return
+        self._store.append_fill(fill)
+        self._store.upsert_order_projection(
+            self._state_machine.get_projection(fill.order_id),
+            projection_source_event_id=None,
+        )
+
     def _tick(self) -> datetime:
         self._clock = self._clock + timedelta(milliseconds=1)
         return self._clock
+
+    def _note_operational_failure(self, *, component: str, error_message: str) -> None:
+        if self._kill_switch is None:
+            return
+        self._kill_switch.evaluate_event_write_failure(
+            triggered_at=self._tick(),
+            component=component,
+            error_message=error_message,
+        )
 
 
 class StubLiveAdapter(LiveAdapterBase):
