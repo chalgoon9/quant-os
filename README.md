@@ -1,41 +1,41 @@
 # Quant OS
 
-Personal quant operating system MVP for a solo operator. This repository is intentionally biased toward:
+혼자 만들고 혼자 운영하는 개인용 퀀트 운영체제 MVP입니다. 이 저장소는 아래 방향을 의도적으로 우선합니다.
 
-- modular monolith over microservices
-- batch-first workflows over unnecessary async
-- fail-closed controls over fail-open convenience
-- append-only order and fill events, with `orders` treated as a projection
-- a common execution contract across `paper`, `shadow`, and `live`
+- 마이크로서비스보다 모듈형 모놀리스
+- 불필요한 async보다 배치 우선 워크플로
+- fail-open 편의보다 fail-closed 통제
+- `orders`를 projection으로 두고 주문/체결 이벤트는 append-only로 보존
+- `paper`, `shadow`, `live` 전반에서 공통 실행 인터페이스 유지
 
-## Current Scope
+## 현재 범위
 
-Implemented so far:
+현재까지 구현된 내용:
 
-- project skeleton and importable Python package
-- core domain enums, IDs, types, and models
-- operational DB schema with SQLAlchemy and Alembic
-- explicit YAML config with fail-closed loading into typed domain models
-- Typer-based CLI skeleton
-- Parquet-backed research storage indexed through DuckDB
-- simple daily momentum strategy producing `TargetExposure`
-- fail-closed risk review with single-name, cash-buffer, and turnover clipping
-- target-to-intent diff generation
-- simple batch backtest that reuses strategy, risk, and intent logic
-- paper adapter with append-only order/fill event emission
-- order state machine with projection derived from order events plus fills
-- ledger projector with cash ledger, inventory lots, and PnL snapshot support
-- reconciliation service for local vs external state comparison
-- fail-closed kill switch for daily loss, stale market data, and reconciliation failures
-- daily report generator summarizing NAV, cash, PnL, reconciliation, and kill-switch state
-- shadow adapter skeleton that reuses the paper execution path for dry-run execution, venue-rule prechecks, and shadow reporting
-- live adapter base plus fail-closed stub that preserves the common execution contract
-- Upbit Quotation API read-only ingestion for no-signup daily market data collection
-- pytest coverage for import, config, migration, research store, strategy pipeline, backtest, execution, reconciliation, kill switch, reporting, shadow, and simulation
+- import 가능한 Python 패키지와 프로젝트 골격
+- 핵심 도메인 enum, ID, type, model
+- SQLAlchemy/Alembic 기반 운영 DB 스키마
+- fail-closed 방식으로 typed domain model에 적재되는 YAML config
+- Typer 기반 CLI 골격
+- DuckDB 인덱싱을 사용하는 Parquet 기반 research storage
+- `TargetExposure`를 생성하는 단순 일봉 모멘텀 전략
+- 단일 종목 한도, 현금 버퍼, turnover clipping을 포함한 fail-closed risk review
+- target과 현재 상태 차이를 이용한 intent 생성
+- 전략, 리스크, intent 로직을 재사용하는 단순 배치 backtest
+- append-only 주문/체결 이벤트를 내보내는 paper adapter
+- order events와 fills로부터 projection을 구성하는 주문 상태 머신
+- cash ledger, inventory lots, PnL snapshot을 지원하는 ledger projector
+- 내부 상태와 외부 상태를 비교하는 reconciliation 서비스
+- 일일 손실, stale market data, reconciliation failure에 반응하는 fail-closed kill switch
+- NAV, 현금, 손익, reconciliation, kill-switch 상태를 요약하는 daily report generator
+- paper 실행 경로를 재사용하면서 venue-rule precheck와 shadow reporting을 제공하는 shadow adapter skeleton
+- 공통 실행 계약을 유지하는 live adapter base와 fail-closed stub
+- 회원가입 없이 쓸 수 있는 Upbit Quotation API 기반 read-only 일봉 데이터 수집
+- import, config, migration, research store, strategy pipeline, backtest, execution, reconciliation, kill switch, reporting, shadow, simulation에 대한 pytest 검증
 
-The key boundary remains enforced: strategies produce `TargetExposure`, not `OrderIntent`.
+핵심 경계는 그대로 유지됩니다. 전략의 출력은 `OrderIntent`가 아니라 `TargetExposure`입니다.
 
-## Proposed File Layout
+## 파일 구조
 
 ```text
 quant/
@@ -78,24 +78,24 @@ quant/
 └─ quant-os-mvp-design-spec.md
 ```
 
-## Config Model
+## 설정 모델
 
-`conf/base.yaml` maps to `quant_os.config.models.AppSettings`, then converts into `quant_os.domain.models.SystemConfig`.
+`conf/base.yaml`은 `quant_os.config.models.AppSettings`로 로드된 뒤 `quant_os.domain.models.SystemConfig`로 변환됩니다.
 
-Current defaults assume:
+현재 기본값은 아래를 가정합니다.
 
-- market: KRX ETF
-- mode: `paper`
-- strategy: daily momentum with configurable lookbacks
-- risk: fail-closed limits with explicit cash buffer and turnover caps
-- intent generation: market order defaults with minimum notional and lot size
-- backtest: explicit initial cash and bps cost model
-- controls: reconciliation tolerances and stale market data threshold
-- storage: operational DB plus local research/data paths
+- 시장: KRX ETF
+- 모드: `paper`
+- 전략: lookback을 조절할 수 있는 일봉 모멘텀
+- 리스크: 명시적 현금 버퍼와 turnover cap을 포함한 fail-closed 한도
+- intent 생성: minimum notional과 lot size를 갖는 기본 시장가 주문
+- backtest: 초기 현금과 bps 비용 모델 명시
+- 제어: reconciliation 허용 오차와 stale market data 기준
+- 저장소: operational DB와 로컬 research/data 경로
 
-## DB Model
+## DB 모델
 
-The operational schema includes:
+운영 스키마에는 아래 테이블이 포함됩니다.
 
 - `strategy_runs`
 - `orders`
@@ -107,16 +107,16 @@ The operational schema includes:
 - `reconciliation_log`
 - `kill_switch_events`
 
-Rules enforced by the schema design:
+스키마 설계에서 강제하는 규칙:
 
-- `order_events` and `fills` are append-only source-of-truth tables
-- `orders` is a projection table
-- broker identifiers are dedupe-aware
-- numeric columns use explicit precision
+- `order_events`와 `fills`는 append-only source-of-truth 테이블
+- `orders`는 projection 테이블
+- broker 식별자는 dedupe를 고려
+- numeric 컬럼은 명시적 precision 사용
 
 ## CLI
 
-The initial CLI exposes:
+현재 CLI는 아래 명령을 제공합니다.
 
 ```bash
 quant-os doctor --config conf/base.yaml
@@ -124,108 +124,108 @@ quant-os ingest-upbit-daily --config conf/base.yaml --market KRW-BTC --count 30
 quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 ```
 
-That command validates the base config, converts it into the domain config, and prints the current research/risk/intent/ledger/execution/reconciliation/kill-switch/reporting runtime surface plus required operational tables.
+이 명령들은 base config를 검증하고 domain config로 변환한 뒤, 현재 research/risk/intent/ledger/execution/reconciliation/kill-switch/reporting runtime surface와 필요한 operational table 목록을 출력합니다.
 
-Runtime adapter selection is now mode-aware:
+실행 adapter 선택은 모드에 따라 달라집니다.
 
 - `paper` -> `PaperAdapter`
 - `shadow` -> `ShadowAdapter`
 - `live` -> `StubLiveAdapter`
 
-`StubLiveAdapter` is intentionally fail-closed. Until a real broker adapter is added, live submissions are rejected with append-only order events rather than silently proceeding.
+`StubLiveAdapter`는 의도적으로 fail-closed입니다. 실제 broker adapter가 추가되기 전까지는 live 제출을 조용히 진행하지 않고, append-only order event를 남기며 거절합니다.
 
-Current simulation coverage now includes:
+현재 simulation 검증 범위:
 
-- partial-fill and timeout-to-`RECONCILE_PENDING`
-- duplicate-fill and out-of-order event rejection
-- store-backed restart/recovery readback
-- operational kill-switch trigger paths
+- partial-fill과 timeout 후 `RECONCILE_PENDING`
+- duplicate-fill과 out-of-order event 거절
+- store 기반 restart/recovery readback
+- operational kill-switch trigger 경로
 
-## API Reference
+## API 참고 문서
 
-The evaluated API options and the currently attached no-signup API are documented in [api_reference.md](/home/lia/repos/my-projects/quant/docs/api_reference.md).
+검토한 API 후보와 현재 연결된 무가입 API는 [api_reference.md](/home/lia/repos/my-projects/quant/docs/api_reference.md)에 정리되어 있습니다.
 
-## Usage Guide
+## 사용 가이드
 
-Step-by-step execution and usage instructions are documented in [usage_guide.md](/home/lia/repos/my-projects/quant/docs/usage_guide.md).
+실행 순서와 사용 방법은 [usage_guide.md](/home/lia/repos/my-projects/quant/docs/usage_guide.md)에 정리되어 있습니다.
 
-## End-to-End Workflow
+## End-to-End 워크플로
 
-The full system workflow is documented in [end_to_end_workflow.md](/home/lia/repos/my-projects/quant/docs/end_to_end_workflow.md).
+전체 시스템 워크플로는 [end_to_end_workflow.md](/home/lia/repos/my-projects/quant/docs/end_to_end_workflow.md)에 정리되어 있습니다.
 
-## Frontend Design
+## 프론트엔드 설계
 
-The current frontend-first architecture and dashboard scope are documented in [frontend_ops_dashboard_design.md](/home/lia/repos/my-projects/quant/docs/frontend_ops_dashboard_design.md).
+현재 프론트 중심 아키텍처와 대시보드 범위는 [frontend_ops_dashboard_design.md](/home/lia/repos/my-projects/quant/docs/frontend_ops_dashboard_design.md)에 정리되어 있습니다.
 
-The screen-by-screen specification is documented in [frontend_screen_spec.md](/home/lia/repos/my-projects/quant/docs/frontend_screen_spec.md).
+화면별 명세는 [frontend_screen_spec.md](/home/lia/repos/my-projects/quant/docs/frontend_screen_spec.md)에 있습니다.
 
-The frontend/backend data contract is documented in [frontend_data_contract.md](/home/lia/repos/my-projects/quant/docs/frontend_data_contract.md).
+프론트/백엔드 데이터 계약은 [frontend_data_contract.md](/home/lia/repos/my-projects/quant/docs/frontend_data_contract.md)에 있습니다.
 
-The proposed FastAPI surface for that dashboard is documented in [frontend_fastapi_api_design.md](/home/lia/repos/my-projects/quant/docs/frontend_fastapi_api_design.md).
+대시보드용 FastAPI API 설계는 [frontend_fastapi_api_design.md](/home/lia/repos/my-projects/quant/docs/frontend_fastapi_api_design.md)에 있습니다.
 
-The implementation plan is documented in [2026-03-10-frontend-ops-dashboard-implementation.md](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-frontend-ops-dashboard-implementation.md).
+구현 계획은 [2026-03-10-frontend-ops-dashboard-implementation.md](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-frontend-ops-dashboard-implementation.md)에 있습니다.
 
-## Quick Start
+## 빠른 시작
 
-1. Create the project environment:
+1. 개발 환경 준비:
 
 ```bash
 uv sync --extra dev
 ```
 
-2. Run the unit skeleton:
+2. 테스트 실행:
 
 ```bash
 uv run --extra dev pytest -q
 ```
 
-3. Validate the migration:
+3. migration 적용:
 
 ```bash
 uv run python -m alembic upgrade head
 ```
 
-4. Validate config and package wiring:
+4. config와 패키지 wiring 확인:
 
 ```bash
 uv run quant-os doctor --config conf/base.yaml
 ```
 
-5. Start the dashboard server:
+5. 대시보드 서버 실행:
 
 ```bash
 uv run quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 ```
 
-6. Open the dashboard:
+6. 대시보드 접속:
 
 ```bash
 http://127.0.0.1:8000
 ```
 
-The same process now serves:
+같은 프로세스가 아래 둘을 함께 서빙합니다.
 
-- frontend SPA at `/`
-- API at `/api`
+- frontend SPA: `/`
+- API: `/api`
 
-If you need access from another device, bind the server to `0.0.0.0` and route traffic through your preferred network path.
+다른 기기에서 접속해야 하면 `0.0.0.0`으로 bind하고, 사용하는 네트워크 경로에 맞는 방식으로 연결하십시오.
 
-## Persistent Service
+## 재부팅 후 자동 실행
 
-To keep the dashboard server running across reboots on this machine, install the user-level systemd service:
+이 머신에서 재부팅 후에도 대시보드 서버를 계속 실행하려면 user-level systemd service를 설치하십시오.
 
 ```bash
 chmod +x scripts/install_user_service.sh
 ./scripts/install_user_service.sh
 ```
 
-The service template lives at [quant-os.service.in](/home/lia/repos/my-projects/quant/deploy/systemd/quant-os.service.in) and is installed into `~/.config/systemd/user/quant-os.service`.
+서비스 템플릿은 [quant-os.service.in](/home/lia/repos/my-projects/quant/deploy/systemd/quant-os.service.in)에 있고, 실제 설치 위치는 `~/.config/systemd/user/quant-os.service`입니다.
 
-## Next Phase Targets
+## 다음 작업 우선순위
 
-Immediate follow-up work should focus on:
+이후 우선순위는 아래에 두는 것이 맞습니다.
 
-- venue-specific live adapter implementation
-- broader simulation coverage for timeout, duplicate, and out-of-order event paths
-- richer shadow/live comparison reporting
-- restart/replay hardening around execution recovery
+- venue별 live adapter 구현
+- timeout, duplicate, out-of-order event 경로에 대한 simulation 확대
+- shadow/live 비교 리포트 보강
+- execution recovery를 위한 restart/replay 보강
