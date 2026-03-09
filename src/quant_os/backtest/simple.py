@@ -58,15 +58,27 @@ class SimpleBacktester:
         equity_curve: list[EquityPoint] = []
         peak_nav = self.settings.initial_cash
         max_drawdown = ZERO
+        timeline = self._timeline()
 
-        for timestamp in self._timeline():
+        for index, timestamp in enumerate(timeline):
             prices = self._price_map(timestamp)
             portfolio = self._portfolio_state(timestamp, cash, quantities, average_costs, prices)
+            nav = quantize(cash + sum(quantity * prices[symbol] for symbol, quantity in quantities.items() if quantity != ZERO), "0.0001")
+            peak_nav = max(peak_nav, nav)
+            drawdown = ZERO if peak_nav == ZERO else quantize((nav / peak_nav) - Decimal("1"), "0.0001")
+            max_drawdown = min(max_drawdown, drawdown)
+            equity_curve.append(EquityPoint(timestamp=timestamp, nav=nav, cash=quantize(cash, "0.0001")))
+
+            if index >= len(timeline) - 1:
+                continue
+
             approved_targets = self.risk_manager.review(self.strategy.generate_targets(timestamp), portfolio)
             intents = self.intent_generator.diff_to_intents(approved_targets, portfolio)
+            execution_timestamp = timeline[index + 1]
+            execution_prices = self._execution_price_map(execution_timestamp)
 
             for intent in intents:
-                price = prices.get(intent.symbol)
+                price = execution_prices.get(intent.symbol)
                 if price is None:
                     continue
                 fill_price = _apply_slippage(price, intent.side, self.settings.slippage_bps)
@@ -89,7 +101,7 @@ class SimpleBacktester:
                     cash += notional - commission
                 trades.append(
                     SimulatedTrade(
-                        timestamp=timestamp,
+                        timestamp=execution_timestamp,
                         symbol=intent.symbol,
                         side=intent.side,
                         quantity=executed_quantity,
@@ -97,12 +109,6 @@ class SimpleBacktester:
                         notional=notional,
                     )
                 )
-
-            nav = quantize(cash + sum(quantity * prices[symbol] for symbol, quantity in quantities.items() if quantity != ZERO), "0.0001")
-            peak_nav = max(peak_nav, nav)
-            drawdown = ZERO if peak_nav == ZERO else quantize((nav / peak_nav) - Decimal("1"), "0.0001")
-            max_drawdown = min(max_drawdown, drawdown)
-            equity_curve.append(EquityPoint(timestamp=timestamp, nav=nav, cash=quantize(cash, "0.0001")))
 
         final_nav = equity_curve[-1].nav if equity_curve else self.settings.initial_cash
         return BacktestResult(
@@ -123,6 +129,14 @@ class SimpleBacktester:
             prior = [bar for bar in bars if bar.timestamp <= timestamp]
             if prior:
                 prices[symbol] = prior[-1].close
+        return prices
+
+    def _execution_price_map(self, timestamp) -> dict[str, Decimal]:
+        prices: dict[str, Decimal] = {}
+        for symbol, bars in self.bars_by_symbol.items():
+            exact = [bar for bar in bars if bar.timestamp == timestamp]
+            if exact:
+                prices[symbol] = exact[0].open
         return prices
 
     def _portfolio_state(

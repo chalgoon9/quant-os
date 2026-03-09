@@ -104,6 +104,9 @@ path=/abs/path/to/bars.parquet
 저장 위치:
 
 - `data/normalized/<dataset>/bars.parquet`
+- `data/raw/upbit_quotation/<dataset>/<timestamp>.json`
+- `data/artifacts/validation/upbit_quotation/<dataset>/<timestamp>.json`
+- validation 실패 시 `data/artifacts/quarantine/upbit_quotation/<dataset>/<timestamp>.json`
 
 ## 5. 수집 데이터 확인
 
@@ -160,6 +163,12 @@ trade_count=12
 저장 위치:
 
 - `data/artifacts/backtests/latest.json`
+- `strategy_runs` 테이블에 run metadata와 config fingerprint 기록
+
+중요:
+
+- 현재 백테스트는 신호 시점과 체결 시점을 분리합니다.
+- 같은 종가로 신호를 만들고 같은 종가로 체결하는 단순 모델은 사용하지 않습니다.
 
 ## 7. 현재 모드 의미
 

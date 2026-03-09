@@ -32,6 +32,7 @@
 - paper 실행 경로를 재사용하면서 venue-rule precheck와 shadow reporting을 제공하는 shadow adapter skeleton
 - 공통 실행 계약을 유지하는 live adapter base와 fail-closed stub
 - 회원가입 없이 쓸 수 있는 Upbit Quotation API 기반 read-only 일봉 데이터 수집
+- Upbit 수집 시 raw payload 선보존, validation report, quarantine artifact 기록
 - import, config, migration, research store, strategy pipeline, backtest, execution, reconciliation, kill switch, reporting, shadow, simulation에 대한 pytest 검증
 
 핵심 경계는 그대로 유지됩니다. 전략의 출력은 `OrderIntent`가 아니라 `TargetExposure`입니다.
@@ -144,6 +145,7 @@ quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 - operational kill-switch trigger 경로
 
 백테스트 실행 결과는 `artifacts_root/backtests/latest.json`에 저장되며, API와 프론트에서 조회할 수 있습니다.
+또한 `strategy_runs`에는 명시적 run row가 남고, 백테스트는 같은 종가 신호/체결이 아니라 다음 실행 시점 가격으로 체결됩니다.
 
 ## API 참고 문서
 

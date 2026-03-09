@@ -29,6 +29,7 @@ from quant_os.domain.models import (
     OrderProjection,
     ReconciliationIssue,
     ReconciliationResult,
+    StrategyRun,
 )
 from quant_os.domain.types import ZERO, quantize
 
@@ -42,6 +43,71 @@ class OperationalStore:
 
     def create_schema(self) -> None:
         Base.metadata.create_all(self.engine)
+
+    def start_strategy_run(self, run: StrategyRun) -> None:
+        with self._session() as session:
+            record = session.get(StrategyRunRecord, run.strategy_run_id)
+            if record is None:
+                record = StrategyRunRecord(id=run.strategy_run_id)
+                session.add(record)
+            record.strategy_name = run.strategy_name
+            record.mode = run.mode
+            record.status = run.status.value
+            record.started_at = run.started_at
+            record.finished_at = run.finished_at
+            record.config_payload = run.config_payload
+
+    def finish_strategy_run(
+        self,
+        strategy_run_id: str,
+        *,
+        status: StrategyRunStatus,
+        finished_at,
+        config_payload: dict[str, object] | None = None,
+    ) -> None:
+        with self._session() as session:
+            record = session.get(StrategyRunRecord, strategy_run_id)
+            if record is None:
+                raise KeyError(f"unknown strategy run: {strategy_run_id}")
+            record.status = status.value
+            record.finished_at = finished_at
+            if config_payload is not None:
+                record.config_payload = config_payload
+
+    def get_strategy_run(self, strategy_run_id: str) -> StrategyRun:
+        with self._session() as session:
+            record = session.get(StrategyRunRecord, strategy_run_id)
+            if record is None:
+                raise KeyError(f"unknown strategy run: {strategy_run_id}")
+        return StrategyRun(
+            strategy_run_id=record.id,
+            strategy_name=record.strategy_name,
+            mode=record.mode,
+            status=record.status,
+            started_at=record.started_at,
+            finished_at=record.finished_at,
+            config_payload=record.config_payload,
+        )
+
+    def list_strategy_runs(self, limit: int = 50) -> list[StrategyRun]:
+        if limit <= 0:
+            raise ValueError("limit must be positive")
+        with self._session() as session:
+            records = session.scalars(
+                select(StrategyRunRecord).order_by(StrategyRunRecord.started_at.desc()).limit(limit)
+            ).all()
+        return [
+            StrategyRun(
+                strategy_run_id=record.id,
+                strategy_name=record.strategy_name,
+                mode=record.mode,
+                status=record.status,
+                started_at=record.started_at,
+                finished_at=record.finished_at,
+                config_payload=record.config_payload,
+            )
+            for record in records
+        ]
 
     def append_order_event(self, event: OrderEvent) -> None:
         with self._session() as session:

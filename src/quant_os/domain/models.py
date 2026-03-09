@@ -305,10 +305,11 @@ class SystemConfig(ImmutableModel):
 class StrategyRun(ImmutableModel):
     strategy_run_id: str
     strategy_name: str
-    mode: TradingMode
+    mode: str
     status: StrategyRunStatus
     started_at: datetime = Field(default_factory=utc_now)
     finished_at: datetime | None = None
+    config_payload: dict[str, object] | None = None
 
 
 class KillSwitchEvent(ImmutableModel):

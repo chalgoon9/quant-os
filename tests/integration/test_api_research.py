@@ -37,28 +37,28 @@ def test_research_routes_list_bars_and_run_upbit_ingestion(tmp_path, monkeypatch
     )
 
     class FakeUpbitClient:
-        def fetch_daily_bars(self, market: str, *, count: int = 200, to=None):
+        def fetch_daily_candle_payload(self, market: str, *, count: int = 200, to=None):
             assert market == "KRW-BTC"
             assert count == 2
             return [
-                MarketBar(
-                    symbol="KRW-BTC",
-                    timestamp=datetime(2026, 3, 8, 0, 0, tzinfo=timezone.utc),
-                    open=150000000,
-                    high=151000000,
-                    low=149000000,
-                    close=150500000,
-                    volume=123.45,
-                ),
-                MarketBar(
-                    symbol="KRW-BTC",
-                    timestamp=datetime(2026, 3, 9, 0, 0, tzinfo=timezone.utc),
-                    open=150500000,
-                    high=152000000,
-                    low=150000000,
-                    close=151000000,
-                    volume=111.11,
-                ),
+                {
+                    "market": "KRW-BTC",
+                    "candle_date_time_utc": "2026-03-08T00:00:00",
+                    "opening_price": 150000000,
+                    "high_price": 151000000,
+                    "low_price": 149000000,
+                    "trade_price": 150500000,
+                    "candle_acc_trade_volume": 123.45,
+                },
+                {
+                    "market": "KRW-BTC",
+                    "candle_date_time_utc": "2026-03-09T00:00:00",
+                    "opening_price": 150500000,
+                    "high_price": 152000000,
+                    "low_price": 150000000,
+                    "trade_price": 151000000,
+                    "candle_acc_trade_volume": 111.11,
+                },
             ]
 
     import quant_os.api.routes.research as research_routes

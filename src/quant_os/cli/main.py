@@ -66,13 +66,20 @@ def ingest_upbit_daily(
     runtime = build_app_runtime(settings)
     client = UpbitQuotationClient()
     resolved_dataset = dataset or default_upbit_dataset_name(market)
-    path = ingest_upbit_daily_bars(
-        client=client,
-        research_store=runtime.research_store,
-        market=market,
-        count=count,
-        dataset=resolved_dataset,
-    )
+    system = settings.to_domain_model()
+    try:
+        path = ingest_upbit_daily_bars(
+            client=client,
+            research_store=runtime.research_store,
+            market=market,
+            count=count,
+            dataset=resolved_dataset,
+            data_root=system.storage.data_root,
+            artifacts_root=system.storage.artifacts_root,
+        )
+    except ValueError as exc:
+        typer.echo(f"error={exc}")
+        raise typer.Exit(code=1) from exc
     typer.echo(f"source=upbit_quotation")
     typer.echo(f"market={market.upper()}")
     typer.echo(f"dataset={resolved_dataset}")

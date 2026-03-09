@@ -59,13 +59,18 @@ def ingest_upbit_daily(
 ) -> UpbitDailyIngestionResponse:
     market = payload.market.strip().upper()
     dataset = payload.dataset or default_upbit_dataset_name(market)
-    path = ingest_upbit_daily_bars(
-        client=UpbitQuotationClient(),
-        research_store=runtime.research_store,
-        market=market,
-        count=payload.count,
-        dataset=dataset,
-    )
+    try:
+        path = ingest_upbit_daily_bars(
+            client=UpbitQuotationClient(),
+            research_store=runtime.research_store,
+            market=market,
+            count=payload.count,
+            dataset=dataset,
+            data_root=runtime.research_store.root.parent if runtime.research_store.root.name == "normalized" else runtime.research_store.root,
+            artifacts_root=runtime.research_store.root.parent / "artifacts" if runtime.research_store.root.name == "normalized" else runtime.research_store.root / "artifacts",
+        )
+    except ValueError as exc:
+        raise ApiError(status_code=400, code="ingestion_validation_failed", message=str(exc)) from exc
     return UpbitDailyIngestionResponse(
         source="upbit_quotation",
         market=market,

@@ -85,3 +85,4 @@ def test_simple_backtester_replays_momentum_strategy() -> None:
     assert result.final_nav > Decimal("100000")
     assert result.trade_count >= 1
     assert result.equity_curve[-1].nav == result.final_nav
+    assert result.trades[0].timestamp == start + timedelta(days=60)
