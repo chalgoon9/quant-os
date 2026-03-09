@@ -121,6 +121,7 @@ describe("App", () => {
     );
 
     expect(await screen.findByRole("link", { name: "개요" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "백테스트" })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: "리서치" })).toBeInTheDocument();
     expect(await screen.findByText("킬 스위치 활성화")).toBeInTheDocument();
     expect(await screen.findByText("섀도 검증 실행")).toBeInTheDocument();

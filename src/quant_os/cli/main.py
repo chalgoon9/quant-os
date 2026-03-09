@@ -5,6 +5,7 @@ import uvicorn
 
 import typer
 
+from quant_os.backtest.service import run_configured_backtest
 from quant_os.api.main import create_app
 from quant_os.config.loader import load_settings
 from quant_os.data_ingestion.upbit import (
@@ -76,6 +77,31 @@ def ingest_upbit_daily(
     typer.echo(f"market={market.upper()}")
     typer.echo(f"dataset={resolved_dataset}")
     typer.echo(f"path={path}")
+
+
+@app.command("run-backtest")
+def run_backtest(
+    config: Path = Path("conf/base.yaml"),
+    dataset: str | None = typer.Option(None, "--dataset", help="Override the research dataset name."),
+) -> None:
+    """Run the configured strategy through the simple backtest engine and save the latest result artifact."""
+    settings = load_settings(config)
+    try:
+        artifact = run_configured_backtest(settings, dataset=dataset)
+    except (FileNotFoundError, ValueError) as exc:
+        typer.echo(f"error={exc}")
+        raise typer.Exit(code=1) from exc
+
+    typer.echo(f"run_id={artifact.result.run_id}")
+    typer.echo(f"strategy={artifact.result.strategy_name}")
+    typer.echo(f"dataset={artifact.result.dataset}")
+    typer.echo(f"path={artifact.path}")
+    typer.echo(f"loaded_symbols={','.join(artifact.result.loaded_symbols)}")
+    typer.echo(f"missing_symbols={','.join(artifact.result.missing_symbols)}")
+    typer.echo(f"final_nav={artifact.result.final_nav}")
+    typer.echo(f"total_return={artifact.result.total_return}")
+    typer.echo(f"max_drawdown={artifact.result.max_drawdown}")
+    typer.echo(f"trade_count={artifact.result.trade_count}")
 
 
 @app.command("serve-api")

@@ -22,6 +22,7 @@
 - 단일 종목 한도, 현금 버퍼, turnover clipping을 포함한 fail-closed risk review
 - target과 현재 상태 차이를 이용한 intent 생성
 - 전략, 리스크, intent 로직을 재사용하는 단순 배치 backtest
+- 최신 백테스트 결과를 저장하는 artifact 경로와 조회 API/프론트 화면
 - append-only 주문/체결 이벤트를 내보내는 paper adapter
 - order events와 fills로부터 projection을 구성하는 주문 상태 머신
 - cash ledger, inventory lots, PnL snapshot을 지원하는 ledger projector
@@ -121,6 +122,7 @@ quant/
 ```bash
 quant-os doctor --config conf/base.yaml
 quant-os ingest-upbit-daily --config conf/base.yaml --market KRW-BTC --count 30
+quant-os run-backtest --config conf/base.yaml --dataset krx_etf_daily
 quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 ```
 
@@ -140,6 +142,8 @@ quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 - duplicate-fill과 out-of-order event 거절
 - store 기반 restart/recovery readback
 - operational kill-switch trigger 경로
+
+백테스트 실행 결과는 `artifacts_root/backtests/latest.json`에 저장되며, API와 프론트에서 조회할 수 있습니다.
 
 ## API 참고 문서
 
@@ -191,13 +195,19 @@ uv run python -m alembic upgrade head
 uv run quant-os doctor --config conf/base.yaml
 ```
 
-5. 대시보드 서버 실행:
+5. 백테스트 실행:
+
+```bash
+uv run quant-os run-backtest --config conf/base.yaml --dataset krx_etf_daily
+```
+
+6. 대시보드 서버 실행:
 
 ```bash
 uv run quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 ```
 
-6. 대시보드 접속:
+7. 대시보드 접속:
 
 ```bash
 http://127.0.0.1:8000
@@ -207,6 +217,8 @@ http://127.0.0.1:8000
 
 - frontend SPA: `/`
 - API: `/api`
+
+프론트의 `백테스트` 화면에서는 가장 최근에 저장된 백테스트 결과를 확인할 수 있습니다.
 
 다른 기기에서 접속해야 하면 `0.0.0.0`으로 bind하고, 사용하는 네트워크 경로에 맞는 방식으로 연결하십시오.
 

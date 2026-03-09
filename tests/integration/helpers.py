@@ -18,7 +18,9 @@ from quant_os.domain.models import (
     Position,
     ReconciliationIssue,
     ReconciliationResult,
+    MarketBar,
 )
+from quant_os.backtest.service import run_configured_backtest
 from quant_os.services.wiring import build_app_runtime
 
 
@@ -210,3 +212,24 @@ def seed_reconciliation_mismatch(runtime) -> None:
             ),
         )
     )
+
+
+def seed_backtest_result(config_path: Path, runtime) -> None:
+    start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    runtime.research_store.write_bars(
+        "krx_etf_daily",
+        [
+            MarketBar(
+                symbol="KRW-BTC",
+                timestamp=start + timedelta(days=index),
+                open=Decimal("1000") + index,
+                high=Decimal("1010") + index,
+                low=Decimal("995") + index,
+                close=Decimal("1005") + index,
+                volume=Decimal("10"),
+            )
+            for index in range(90)
+        ],
+    )
+    settings = load_settings(config_path)
+    run_configured_backtest(settings)

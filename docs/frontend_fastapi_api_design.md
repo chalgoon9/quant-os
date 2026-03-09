@@ -439,6 +439,7 @@ request body:
 7. `GET /api/ops/orders`
 8. `GET /api/ops/orders/{order_id}`
 9. `GET /api/reports/daily/latest`
+10. `GET /api/backtests/latest`
 
 ## 12. 구현 전 필수 보강점
 

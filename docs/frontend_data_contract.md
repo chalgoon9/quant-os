@@ -91,6 +91,46 @@ response:
 }
 ```
 
+### `GET /api/backtests/latest`
+
+response:
+
+```json
+{
+  "summary": {
+    "run_id": "backtest_123",
+    "strategy_name": "daily_momentum",
+    "dataset": "krx_etf_daily",
+    "generated_at": "2026-03-10T00:00:00+00:00",
+    "as_of": "2026-03-09T00:00:00+00:00",
+    "initial_cash": "10000000.0000",
+    "final_nav": "10123456.0000",
+    "total_return": "0.0123",
+    "max_drawdown": "-0.0345",
+    "trade_count": 12,
+    "loaded_symbols": ["069500", "114800"],
+    "missing_symbols": ["122630"]
+  },
+  "equity_curve": [
+    {
+      "timestamp": "2026-03-01T00:00:00+00:00",
+      "nav": "10000000.0000",
+      "cash": "10000000.0000"
+    }
+  ],
+  "trades": [
+    {
+      "timestamp": "2026-03-03T00:00:00+00:00",
+      "symbol": "069500",
+      "side": "buy",
+      "quantity": "10.0000",
+      "price": "100.0000",
+      "notional": "1000.0000"
+    }
+  ]
+}
+```
+
 TypeScript:
 
 ```ts

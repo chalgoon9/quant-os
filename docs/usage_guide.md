@@ -134,7 +134,34 @@ PY
 
 - [store.py](/home/lia/repos/my-projects/quant/src/quant_os/research_store/store.py)
 
-## 6. 현재 모드 의미
+## 6. 백테스트 실행
+
+설정에 정의된 전략을 데이터셋에 대해 실행:
+
+```bash
+uv run quant-os run-backtest --config conf/base.yaml --dataset krx_etf_daily
+```
+
+예상 출력 예시:
+
+```text
+run_id=backtest_xxxxx
+strategy=daily_momentum
+dataset=krx_etf_daily
+path=/abs/path/to/latest.json
+loaded_symbols=069500,114800
+missing_symbols=122630,229200,233740
+final_nav=10123456.0000
+total_return=0.0123
+max_drawdown=-0.0345
+trade_count=12
+```
+
+저장 위치:
+
+- `data/artifacts/backtests/latest.json`
+
+## 7. 현재 모드 의미
 
 - `paper`
   - 내부 paper execution 사용
@@ -148,7 +175,7 @@ PY
 - 현재 `live`는 실거래가 아닙니다.
 - 실제 broker `LiveAdapter`와 external sync/reconciliation이 아직 없으므로 live 제출 용도로 사용하면 안 됩니다.
 
-## 7. API 백엔드 실행
+## 8. API 백엔드 실행
 
 대시보드와 API를 함께 서빙하는 FastAPI 실행:
 
@@ -165,12 +192,13 @@ uv run quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 
 - `GET /api/system/runtime`
 - `GET /api/ops/summary`
+- `GET /api/backtests/latest`
 - `GET /api/ops/orders`
 - `GET /api/research/datasets`
 - `POST /api/research/ingestion/upbit/daily`
 - `GET /api/reports/daily/latest`
 
-## 8. 프론트 실행
+## 9. 프론트 실행
 
 기본 운영 방식은 별도 preview 서버가 아니라 FastAPI 단일 포트 서빙입니다.
 
@@ -198,7 +226,7 @@ npm run dev -- --host 0.0.0.0 --port 4173
 - `serve-api`를 `--host 0.0.0.0`으로 실행
 - 사용하는 네트워크 정책에 맞는 프록시나 터널을 별도로 구성
 
-## 8-1. 재부팅 후 자동 실행
+## 9-1. 재부팅 후 자동 실행
 
 이 머신에서 대시보드 서버를 재부팅 후에도 자동으로 올리려면 user-level systemd service를 설치합니다.
 
@@ -219,7 +247,7 @@ chmod +x scripts/install_user_service.sh
 systemctl --user status quant-os.service
 ```
 
-## 9. 현재 가능한 흐름
+## 10. 현재 가능한 흐름
 
 현재 저장소에서 바로 가능한 운영 흐름은 아래 수준입니다.
 
@@ -227,17 +255,18 @@ systemctl --user status quant-os.service
 2. migration 적용
 3. 테스트 실행
 4. read-only 시세 수집
-5. research/backtest 입력 데이터 저장
-6. paper/shadow skeleton 경로 검증
+5. 백테스트 실행과 결과 저장
+6. API/프론트에서 최신 백테스트 결과 조회
+7. paper/shadow skeleton 경로 검증
 
-## 10. 현재 불가능하거나 미완성인 것
+## 11. 현재 불가능하거나 미완성인 것
 
 - 실제 broker 주문 제출
 - broker 잔고/체결/open order 동기화
 - live reconciliation 실연결
 - tiny live 운영
 
-## 11. 문서 위치
+## 12. 문서 위치
 
 - 개요: [README.md](/home/lia/repos/my-projects/quant/README.md)
 - API 조사/채택 기록: [api_reference.md](/home/lia/repos/my-projects/quant/docs/api_reference.md)

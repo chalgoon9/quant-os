@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from quant_os.api.deps import resolve_config_path
 from quant_os.api.errors import install_error_handlers
+from quant_os.api.routes.backtests import router as backtests_router
 from quant_os.api.routes.ops import router as ops_router
 from quant_os.api.routes.reports import router as reports_router
 from quant_os.api.routes.research import router as research_router
@@ -44,6 +45,7 @@ def create_app(
     app.include_router(ops_router, prefix="/api")
     app.include_router(research_router, prefix="/api")
     app.include_router(reports_router, prefix="/api")
+    app.include_router(backtests_router, prefix="/api")
 
     frontend_root = Path(app.state.frontend_dist)
     assets_dir = frontend_root / "assets"

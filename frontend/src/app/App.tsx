@@ -11,6 +11,7 @@ import { OrdersPage } from "../pages/OrdersPage";
 import { OverviewPage } from "../pages/OverviewPage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { ResearchPage } from "../pages/ResearchPage";
+import { BacktestPage } from "../pages/BacktestPage";
 
 export function App() {
   const runtime = useRuntime();
@@ -38,6 +39,7 @@ export function App() {
         <main className="app-content">
           <Routes>
             <Route element={<OverviewPage />} path="/" />
+            <Route element={<BacktestPage />} path="/backtests" />
             <Route element={<OrdersPage />} path="/orders" />
             <Route element={<ResearchPage />} path="/research" />
             <Route element={<ReportsPage />} path="/reports" />

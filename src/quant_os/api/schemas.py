@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
+from quant_os.backtest.results import StoredBacktestResult
 from pydantic import BaseModel, ConfigDict, Field
 
 from quant_os.domain.models import DailyReport, FillEvent, KillSwitchEvent, MarketBar, OrderEvent, OrderProjection, ReconciliationResult
@@ -198,6 +199,42 @@ class DailyReportResponse(ApiModel):
     body_markdown: str
 
 
+class BacktestSummaryResponse(ApiModel):
+    run_id: str
+    strategy_name: str
+    dataset: str
+    generated_at: str
+    as_of: str
+    initial_cash: str
+    final_nav: str
+    total_return: str
+    max_drawdown: str
+    trade_count: int
+    loaded_symbols: list[str]
+    missing_symbols: list[str]
+
+
+class BacktestEquityPointResponse(ApiModel):
+    timestamp: str
+    nav: str
+    cash: str
+
+
+class BacktestTradeResponse(ApiModel):
+    timestamp: str
+    symbol: str
+    side: str
+    quantity: str
+    price: str
+    notional: str
+
+
+class BacktestDetailResponse(ApiModel):
+    summary: BacktestSummaryResponse
+    equity_curve: list[BacktestEquityPointResponse]
+    trades: list[BacktestTradeResponse]
+
+
 def order_list_item_from_domain(projection: OrderProjection) -> OrderListItem:
     return OrderListItem(
         order_id=projection.order_id,
@@ -315,6 +352,44 @@ def daily_report_from_domain(report: DailyReport) -> DailyReportResponse:
         reconciliation_status=report.reconciliation_status.value,
         active_kill_switch_reasons=[reason.value for reason in report.active_kill_switch_reasons],
         body_markdown=report.body_markdown,
+    )
+
+
+def backtest_detail_from_domain(result: StoredBacktestResult) -> BacktestDetailResponse:
+    return BacktestDetailResponse(
+        summary=BacktestSummaryResponse(
+            run_id=result.run_id,
+            strategy_name=result.strategy_name,
+            dataset=result.dataset,
+            generated_at=_iso_datetime(result.generated_at),
+            as_of=_iso_datetime(result.as_of),
+            initial_cash=_decimal_string(result.initial_cash, digits="0.0000"),
+            final_nav=_decimal_string(result.final_nav, digits="0.0000"),
+            total_return=_decimal_string(result.total_return, digits="0.0000"),
+            max_drawdown=_decimal_string(result.max_drawdown, digits="0.0000"),
+            trade_count=result.trade_count,
+            loaded_symbols=list(result.loaded_symbols),
+            missing_symbols=list(result.missing_symbols),
+        ),
+        equity_curve=[
+            BacktestEquityPointResponse(
+                timestamp=_iso_datetime(point.timestamp),
+                nav=_decimal_string(point.nav, digits="0.0000"),
+                cash=_decimal_string(point.cash, digits="0.0000"),
+            )
+            for point in result.equity_curve
+        ],
+        trades=[
+            BacktestTradeResponse(
+                timestamp=_iso_datetime(trade.timestamp),
+                symbol=trade.symbol,
+                side=trade.side.value,
+                quantity=_decimal_string(trade.quantity, digits="0.0000"),
+                price=_decimal_string(trade.price, digits="0.0000"),
+                notional=_decimal_string(trade.notional, digits="0.0000"),
+            )
+            for trade in result.trades
+        ],
     )
 
 

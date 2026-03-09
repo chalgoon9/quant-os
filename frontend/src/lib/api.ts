@@ -178,6 +178,42 @@ export type DailyReportResponse = {
   body_markdown: string;
 };
 
+export type BacktestSummaryDto = {
+  run_id: string;
+  strategy_name: string;
+  dataset: string;
+  generated_at: string;
+  as_of: string;
+  initial_cash: string;
+  final_nav: string;
+  total_return: string;
+  max_drawdown: string;
+  trade_count: number;
+  loaded_symbols: string[];
+  missing_symbols: string[];
+};
+
+export type BacktestEquityPointDto = {
+  timestamp: string;
+  nav: string;
+  cash: string;
+};
+
+export type BacktestTradeDto = {
+  timestamp: string;
+  symbol: string;
+  side: "buy" | "sell";
+  quantity: string;
+  price: string;
+  notional: string;
+};
+
+export type BacktestDetailResponse = {
+  summary: BacktestSummaryDto;
+  equity_curve: BacktestEquityPointDto[];
+  trades: BacktestTradeDto[];
+};
+
 type ErrorBody = {
   error?: string;
   code?: string;
@@ -285,4 +321,8 @@ export function postUpbitDailyIngestion(payload: UpbitIngestionRequest) {
 
 export function getDailyReportLatest() {
   return requestJson<DailyReportResponse>("/reports/daily/latest");
+}
+
+export function getBacktestLatest() {
+  return requestJson<BacktestDetailResponse>("/backtests/latest");
 }

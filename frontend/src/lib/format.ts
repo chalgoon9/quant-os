@@ -32,6 +32,19 @@ export function formatCompactDecimal(value: string | null | undefined, fallback 
   return compactNumberFormatter.format(numeric);
 }
 
+export function formatPercent(value: string | null | undefined, fallback = "-") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) {
+    return value;
+  }
+
+  return `${moneyFormatter.format(numeric * 100)}%`;
+}
+
 export function formatTimestamp(value: string | null | undefined, fallback = "-") {
   if (!value) {
     return fallback;
