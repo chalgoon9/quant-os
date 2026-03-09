@@ -25,10 +25,10 @@ export function App() {
             <div className="skeleton skeleton--status" />
           ) : runtime.isError ? (
             <StatePanel
-              description="Runtime metadata could not be loaded from the backend."
+              description="현재 모드, 시장, 데이터셋 정보를 표시하려면 백엔드의 런타임 메타데이터가 필요합니다."
               onAction={() => void runtime.refetch()}
-              actionLabel="Retry"
-              title="Runtime fetch failed"
+              actionLabel="다시 시도"
+              title="런타임 정보를 불러올 수 없음"
             />
           ) : runtime.data ? (
             <StatusBar runtime={runtime.data} />

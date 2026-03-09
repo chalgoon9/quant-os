@@ -120,10 +120,23 @@ describe("App", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByRole("link", { name: "Overview" })).toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Research" })).toBeInTheDocument();
-    expect(await screen.findByText("KILL SWITCH ACTIVE")).toBeInTheDocument();
-    expect(await screen.findByText("ShadowAdapter")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "개요" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "리서치" })).toBeInTheDocument();
+    expect(await screen.findByText("킬 스위치 활성화")).toBeInTheDocument();
+    expect(await screen.findByText("섀도 검증 실행")).toBeInTheDocument();
     expect(await screen.findByText("daily_momentum")).toBeInTheDocument();
+    expect(await screen.findByText("처음 시작하기")).toBeInTheDocument();
+    expect(await screen.findByText("순자산가치(NAV)")).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "신규 주문이 중단되어 있습니다. 원인: 안전 점검에서 기록 불일치가 확인됨.",
+        { exact: false },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        "섀도 모드는 실제 주문 없이 의사결정 흐름만 따라가며 결과를 점검하는 용도입니다.",
+      ),
+    ).toBeInTheDocument();
   });
 });

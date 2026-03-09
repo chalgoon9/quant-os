@@ -150,10 +150,10 @@ PY
 
 ## 7. API 백엔드 실행
 
-대시보드용 FastAPI 실행:
+대시보드와 API를 함께 서빙하는 FastAPI 실행:
 
 ```bash
-uv run quant-os serve-api --config conf/base.yaml --host 0.0.0.0 --port 8000
+uv run quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 ```
 
 기본 base URL:
@@ -177,7 +177,6 @@ uv run quant-os serve-api --config conf/base.yaml --host 0.0.0.0 --port 8000
 브라우저 접속:
 
 - `http://127.0.0.1:8000`
-- LAN 접속 예시: `http://192.168.0.31:8000`
 
 프론트 production build 갱신이 필요하면:
 
@@ -186,11 +185,38 @@ cd frontend
 npm run build
 ```
 
-개발용으로만 Vite dev server를 따로 띄우고 싶으면:
+로컬 프론트 개발이 필요할 때만 Vite dev server를 따로 띄울 수 있습니다.
+이 경우 API는 기본적으로 같은 머신의 `:8000`을 바라봅니다.
 
 ```bash
 cd frontend
 npm run dev -- --host 0.0.0.0 --port 4173
+```
+
+다른 기기에서 접속하려면:
+
+- `serve-api`를 `--host 0.0.0.0`으로 실행
+- 사용하는 네트워크 정책에 맞는 프록시나 터널을 별도로 구성
+
+## 8-1. 재부팅 후 자동 실행
+
+이 머신에서 대시보드 서버를 재부팅 후에도 자동으로 올리려면 user-level systemd service를 설치합니다.
+
+```bash
+chmod +x scripts/install_user_service.sh
+./scripts/install_user_service.sh
+```
+
+설치 결과:
+
+- 템플릿: [quant-os.service.in](/home/lia/repos/my-projects/quant/deploy/systemd/quant-os.service.in)
+- 실제 서비스 파일: `~/.config/systemd/user/quant-os.service`
+- 서비스 이름: `quant-os.service`
+
+상태 확인:
+
+```bash
+systemctl --user status quant-os.service
 ```
 
 ## 9. 현재 가능한 흐름

@@ -1,5 +1,9 @@
 import type { OrderDetailResponse } from "../lib/api";
-import { formatCompactDecimal, formatTimestamp, titleCase } from "../lib/format";
+import {
+  formatCompactDecimal,
+  formatTimestamp,
+  humanizeEventType,
+} from "../lib/format";
 
 import { SectionCard } from "./SectionCard";
 import { StatusBadge } from "./StatusBadge";
@@ -22,57 +26,66 @@ export function OrderDetailDrawer({
     <aside className={`drawer${detail || isLoading || isError ? " drawer--open" : ""}`}>
       <div className="drawer__header">
         <div>
-          <p className="panel__eyebrow">Order Detail</p>
-          <h2 className="panel__title">Append-only timeline</h2>
+          <p className="panel__eyebrow">주문 상세</p>
+          <h2 className="panel__title">이 주문을 읽는 방법</h2>
+          <p className="panel__description">
+            상단 요약은 현재 상태를, 타임라인은 상태 변경 이력을, 체결 내역은 실제로 나뉘어 체결된 거래 조각을 보여줍니다.
+          </p>
         </div>
         <button className="button button--ghost" onClick={onClose} type="button">
-          Close
+          닫기
         </button>
       </div>
       {isLoading ? <div className="skeleton skeleton--block" /> : null}
       {isError ? (
         <StatePanel
-          description="The order detail request failed. Try selecting the row again."
-          title="Unable to load order"
+          description="주문 상세를 불러오지 못했습니다. 행을 다시 선택해 보십시오."
+          title="주문 상세를 불러올 수 없음"
         />
       ) : null}
       {detail ? (
         <div className="drawer__content">
-          <SectionCard title={detail.projection.order_id}>
+          <SectionCard
+            description="이 주문의 최신 상태 요약입니다."
+            title={detail.projection.order_id}
+          >
             <dl className="definition-grid">
               <div>
-                <dt>Status</dt>
+                <dt>상태</dt>
                 <dd>
                   <StatusBadge value={detail.projection.status} />
                 </dd>
               </div>
               <div>
-                <dt>Intent</dt>
+                <dt>의도 ID</dt>
                 <dd>{detail.projection.intent_id}</dd>
               </div>
               <div>
-                <dt>Quantity</dt>
+                <dt>주문 수량</dt>
                 <dd>{formatCompactDecimal(detail.projection.quantity)}</dd>
               </div>
               <div>
-                <dt>Filled</dt>
+                <dt>체결 수량</dt>
                 <dd>{formatCompactDecimal(detail.projection.filled_quantity)}</dd>
               </div>
               <div>
-                <dt>Created</dt>
+                <dt>생성 시각</dt>
                 <dd>{formatTimestamp(detail.projection.created_at)}</dd>
               </div>
               <div>
-                <dt>Updated</dt>
+                <dt>마지막 갱신</dt>
                 <dd>{formatTimestamp(detail.projection.updated_at)}</dd>
               </div>
             </dl>
           </SectionCard>
-          <SectionCard title="Event Timeline">
+          <SectionCard
+            description="주문 제출부터 체결 또는 취소까지 기록된 상태 변경 이력입니다."
+            title="주문 타임라인"
+          >
             {detail.events.length === 0 ? (
               <StatePanel
-                description="No order events have been recorded yet."
-                title="No events yet"
+                description="아직 이 주문에 대한 상태 변경 기록이 없습니다."
+                title="이벤트 없음"
               />
             ) : (
               <div className="timeline">
@@ -82,39 +95,47 @@ export function OrderDetailDrawer({
                       <StatusBadge value={event.status} />
                       <span>{formatTimestamp(event.occurred_at)}</span>
                     </div>
-                    <strong>{titleCase(event.event_type)}</strong>
-                    <p>{event.reason ?? "No explicit reason recorded."}</p>
+                    <strong>{humanizeEventType(event.event_type)}</strong>
+                    <p>{event.reason ?? "별도로 기록된 사유는 없습니다."}</p>
                   </div>
                 ))}
               </div>
             )}
           </SectionCard>
-          <SectionCard title="Fills">
+          <SectionCard
+            description="이 주문에 대해 실제로 체결된 내역입니다. 부분 체결이면 여러 줄로 나뉠 수 있습니다."
+            title="체결 내역"
+          >
             {detail.fills.length === 0 ? (
-              <StatePanel description="No fills have been recorded yet." title="No fills yet" />
+              <StatePanel
+                description="아직 이 주문에 연결된 체결 기록이 없습니다."
+                title="체결 없음"
+              />
             ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Fill ID</th>
-                    <th>Occurred</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Fee</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.fills.map((fill) => (
-                    <tr key={fill.fill_id}>
-                      <td>{fill.fill_id}</td>
-                      <td>{formatTimestamp(fill.occurred_at)}</td>
-                      <td>{formatCompactDecimal(fill.quantity)}</td>
-                      <td>{formatCompactDecimal(fill.price)}</td>
-                      <td>{formatCompactDecimal(fill.fee)}</td>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>체결 ID</th>
+                      <th>시각</th>
+                      <th>수량</th>
+                      <th>가격</th>
+                      <th>수수료</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {detail.fills.map((fill) => (
+                      <tr key={fill.fill_id}>
+                        <td>{fill.fill_id}</td>
+                        <td>{formatTimestamp(fill.occurred_at)}</td>
+                        <td>{formatCompactDecimal(fill.quantity)}</td>
+                        <td>{formatCompactDecimal(fill.price)}</td>
+                        <td>{formatCompactDecimal(fill.fee)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </SectionCard>
         </div>

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 이 파일은 이 저장소에서 작업하는 개발 에이전트를 위한 실행 지침이다.
-상세 설계는 `docs/specs/quant-os-mvp-design-spec.md`를 참고하되, 구현 중 판단이 필요할 때는 이 파일의 원칙을 우선 적용한다.
+상세 설계는 `quant-os-mvp-design-spec.md`를 참고하되, 구현 중 판단이 필요할 때는 이 파일의 원칙을 우선 적용한다.
 
 ## 1. 프로젝트 목적
 
@@ -32,6 +32,7 @@
 - 실행 모드: paper -> shadow-live -> tiny live
 - 코드베이스: modular monolith
 - 기술 기준: Python + Parquet/DuckDB + PostgreSQL
+- 로컬 개발/테스트에서는 SQLite 를 보조적으로 사용할 수 있다.
 
 ## 3. 절대 바꾸면 안 되는 원칙
 
@@ -68,6 +69,7 @@
 - ledger / pnl projection
 - reconciliation
 - daily report
+- 가벼운 운영 대시보드와 얇은 HTTP API
 - unit / integration / simulation test 골격
 
 ## 5. 비목표
@@ -80,7 +82,7 @@
 - 멀티전략 최적화
 - 멀티브로커 동시 완성
 - Kafka, Celery, Redis Queue, Kubernetes
-- 복잡한 실시간 웹 프론트엔드
+- 복잡한 실시간 웹 프론트엔드 제품화
 - ML/DL 기반 시그널링 우선 도입
 - 과한 체결 시뮬레이터
 
@@ -90,13 +92,14 @@
 - pydantic v2
 - SQLAlchemy 2.x
 - Alembic
-- PostgreSQL
+- PostgreSQL 를 운영 기준으로 사용
+- SQLite 는 로컬 개발/테스트에서 허용
 - DuckDB
 - pandas 우선, 필요 시 polars 일부
 - pytest
 - CLI 는 `typer` 또는 `argparse`
 - scheduler 는 cron 친화 구조 또는 APScheduler
-- FastAPI 는 꼭 필요해질 때 skeleton 정도만
+- FastAPI 는 얇은 운영 API/대시보드 백엔드 수준에서 허용
 
 ## 7. 저장소 구조
 
@@ -125,7 +128,9 @@ quant_os/
 ├─ sql/
 │  ├─ migrations/
 │  └─ views/
+├─ frontend/
 ├─ src/quant_os/
+│  ├─ api/
 │  ├─ domain/
 │  ├─ data_ingestion/
 │  ├─ normalization/
@@ -137,6 +142,7 @@ quant_os/
 │  ├─ intent/
 │  ├─ execution/
 │  ├─ adapters/
+│  ├─ db/
 │  ├─ ledger/
 │  ├─ reconciliation/
 │  ├─ reporting/
@@ -226,7 +232,8 @@ kill switch 는 선택 기능이 아니다.
 
 ## 12. 구현 순서
 
-아래 순서로 구현한다.
+아래 순서는 아키텍처와 구현 의도를 설명하는 기준이다.
+현재 저장소는 Phase 1~5의 기본 골격을 이미 지난 상태로 보고, 이후 작업은 아래 순서를 거슬러 구조를 깨지 않도록 보강/유지보수/UX 개선/live 준비를 진행한다.
 
 ### Phase 1
 - 프로젝트 골격
@@ -281,32 +288,21 @@ kill switch 는 선택 기능이 아니다.
 - 로깅은 사고 복기가 가능한 수준으로 남긴다.
 - “추후 확장 가능성”을 이유로 현재 구조를 과하게 복잡하게 만들지 않는다.
 
-## 14. 개발 에이전트 출력 형식
+## 14. 개발 에이전트 응답 원칙
 
-항상 아래 형식으로 응답한다.
+응답 형식은 작업 성격에 맞게 간결하게 한다.
+구현 요청에서는 질문이 있더라도 먼저 합리적 기본값으로 전진하고, 설계 토론만 하지 말고 실제 코드, 파일 구조, 마이그레이션, 테스트를 우선 생성한다.
 
-1. 이번 단계의 목표
-2. 명시적 가정
-3. 구현 계획
-4. 생성/수정할 파일 목록
-5. 실제 코드 또는 패치
-6. 실행 방법
-7. 테스트 방법과 예상 결과
-8. 남은 리스크 / 다음 단계
+## 15. 현재 작업 모드
 
-질문이 있더라도 먼저 합리적 기본값으로 전진한다.
-설계 토론만 하지 말고 실제 코드, 파일 구조, 마이그레이션, 테스트를 생성한다.
+현재 저장소는 MVP 기본 골격이 구현된 상태로 간주한다.
+이후 작업의 기본 우선순위는 아래와 같다.
 
-## 15. 첫 작업 지시
+- 기존 도메인 경계와 append-only 원칙을 해치지 않는 보강
+- 상태 복원성과 fail-closed 성질 강화
+- paper/shadow/live 경계 정리
+- external sync/reconciliation 및 live adapter 준비
+- 테스트 보강
+- 문서와 UX 개선
 
-지금 시작점은 Phase 1 이다.
-
-완료 기준:
-
-- 프로젝트가 import 가능할 것
-- 기본 테스트가 실행 가능할 것
-- DB schema 가 적용 가능할 것
-- config 를 읽어 domain model 로 변환 가능할 것
-- 다음 단계(backtest, paper execution)로 바로 들어갈 수 있을 것
-
-상세 설계와 맥락은 `docs/specs/quant-os-mvp-design-spec.md` 를 참고하라.
+상세 설계와 맥락은 `quant-os-mvp-design-spec.md` 를 참고하라.

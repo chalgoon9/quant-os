@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import type { KillSwitchEventDto } from "../lib/api";
-import { formatTimestamp, titleCase } from "../lib/format";
+import { formatTimestamp, humanizeKillSwitchReason } from "../lib/format";
 
 type KillSwitchBannerProps = {
   events: KillSwitchEventDto[];
@@ -19,18 +19,19 @@ export function KillSwitchBanner({ events }: KillSwitchBannerProps) {
   return (
     <div className="kill-banner" role="alert">
       <div>
-        <strong>KILL SWITCH ACTIVE</strong>
+        <strong>킬 스위치 활성화</strong>
         <p>
-          {events.map((event) => titleCase(event.reason)).join(", ")} · latest trigger{" "}
-          {formatTimestamp(latestEvent.triggered_at)}
+          신규 주문이 중단되어 있습니다. 원인: {events
+            .map((event) => humanizeKillSwitchReason(event.reason))
+            .join(", ")}. 최근 발생 시각은 {formatTimestamp(latestEvent.triggered_at)}입니다.
         </p>
       </div>
       <div className="kill-banner__actions">
         <Link className="button button--ghost" to="/reports">
-          Open Reports
+          리포트 보기
         </Link>
         <Link className="button" to="/controls">
-          Open Controls
+          제어 화면 열기
         </Link>
       </div>
     </div>

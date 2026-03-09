@@ -413,7 +413,12 @@ request body:
 
 ## 10. CORS / 배포 가정
 
-개발 환경:
+기본 운영 환경:
+
+- frontend와 backend를 FastAPI 단일 origin으로 함께 서빙
+- 브라우저는 `/api` 또는 현재 호스트의 `:8000/api`를 사용
+
+로컬 분리 개발 환경:
 
 - frontend: `http://localhost:5173`
 - backend: `http://localhost:8000`

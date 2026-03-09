@@ -1,0 +1,15 @@
+[Unit]
+Description=Quant OS dashboard API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@REPO_ROOT@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@UV_BIN@ run quant-os serve-api --config conf/base.yaml --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

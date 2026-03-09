@@ -1,4 +1,4 @@
-import { titleCase } from "../lib/format";
+import { humanizeMode, humanizeSide, humanizeStatus } from "../lib/format";
 
 type StatusBadgeProps = {
   value: string;
@@ -41,5 +41,12 @@ function getClassName(value: string, kind?: "mode" | "status" | "side") {
 }
 
 export function StatusBadge({ value, kind = "status" }: StatusBadgeProps) {
-  return <span className={`badge ${getClassName(value, kind)}`}>{titleCase(value)}</span>;
+  const label =
+    kind === "mode"
+      ? humanizeMode(value)
+      : kind === "side"
+        ? humanizeSide(value)
+        : humanizeStatus(value);
+
+  return <span className={`badge ${getClassName(value, kind)}`}>{label}</span>;
 }

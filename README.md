@@ -1,6 +1,6 @@
 # Quant OS
 
-Phase 1 through Phase 5 skeleton for a personal quant operating system MVP. This repository is intentionally biased toward:
+Personal quant operating system MVP for a solo operator. This repository is intentionally biased toward:
 
 - modular monolith over microservices
 - batch-first workflows over unnecessary async
@@ -191,10 +191,10 @@ uv run python -m alembic upgrade head
 uv run quant-os doctor --config conf/base.yaml
 ```
 
-5. Start the dashboard backend:
+5. Start the dashboard server:
 
 ```bash
-uv run quant-os serve-api --config conf/base.yaml --host 0.0.0.0 --port 8000
+uv run quant-os serve-api --config conf/base.yaml --host 127.0.0.1 --port 8000
 ```
 
 6. Open the dashboard:
@@ -207,6 +207,19 @@ The same process now serves:
 
 - frontend SPA at `/`
 - API at `/api`
+
+If you need access from another device, bind the server to `0.0.0.0` and route traffic through your preferred network path.
+
+## Persistent Service
+
+To keep the dashboard server running across reboots on this machine, install the user-level systemd service:
+
+```bash
+chmod +x scripts/install_user_service.sh
+./scripts/install_user_service.sh
+```
+
+The service template lives at [quant-os.service.in](/home/lia/repos/my-projects/quant/deploy/systemd/quant-os.service.in) and is installed into `~/.config/systemd/user/quant-os.service`.
 
 ## Next Phase Targets
 

@@ -13,7 +13,8 @@
 
 ### 1.1 Base URL
 
-- 개발: `http://localhost:8000/api`
+- 기본 운영: 현재 대시보드 origin의 `/api`
+- 로컬 분리 개발: `http://localhost:8000/api`
 
 ### 1.2 Content Type
 
