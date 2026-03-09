@@ -1,0 +1,61 @@
+app:
+  system_name: quant-os-mvp
+
+trading:
+  mode: paper
+  base_currency: KRW
+  venue: krx
+
+strategy:
+  name: daily_momentum
+  universe:
+    - "069500"
+    - "114800"
+    - "122630"
+    - "229200"
+    - "233740"
+  rebalance_calendar: daily
+  max_names: 5
+  target_gross_exposure_limit: "0.95"
+  fast_lookback: 20
+  slow_lookback: 60
+  trend_lookback: 40
+  seed_weights:
+    "069500": "0.19"
+    "114800": "0.19"
+    "122630": "0.19"
+    "229200": "0.19"
+    "233740": "0.19"
+
+risk:
+  max_single_name_weight: "0.20"
+  min_cash_buffer: "0.05"
+  daily_loss_limit: "0.03"
+  max_turnover: "0.25"
+  fail_closed: true
+
+research:
+  duckdb_path: ../research/quant_os.duckdb
+  market_data_dataset: krx_etf_daily
+
+intent:
+  lot_size: "1"
+  min_trade_notional: "1000"
+  default_order_type: market
+  time_in_force: day
+
+backtest:
+  initial_cash: "10000000"
+  commission_bps: "5"
+  slippage_bps: "5"
+
+controls:
+  reconciliation_cash_tolerance: "1"
+  reconciliation_position_tolerance: "0.001"
+  stale_market_data_seconds: 86400
+
+storage:
+  operational_db_url: sqlite:///./var/quant_os.db
+  data_root: ../data
+  research_root: ../research
+  artifacts_root: ../data/artifacts

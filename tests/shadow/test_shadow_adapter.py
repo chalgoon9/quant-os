@@ -1,0 +1,111 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from decimal import Decimal
+
+
+def test_shadow_adapter_simulates_execution_and_builds_report() -> None:
+    from quant_os.adapters.shadow import ShadowAdapter
+    from quant_os.domain.enums import OrderSide, OrderStatus, OrderType, TradingMode
+    from quant_os.domain.models import OrderIntent, PortfolioState
+
+    as_of = datetime(2026, 3, 9, 9, 0, tzinfo=timezone.utc)
+    adapter = ShadowAdapter(
+        PortfolioState(
+            as_of=as_of,
+            base_currency="KRW",
+            cash_balance=Decimal("100000"),
+            net_asset_value=Decimal("100000"),
+            positions=(),
+            market_prices={"AAA": Decimal("100")},
+        ),
+        venue="krx",
+        commission_bps=Decimal("0"),
+        slippage_bps=Decimal("0"),
+    )
+    intent = OrderIntent(
+        intent_id="intent_shadow_1",
+        strategy_run_id="run_shadow_1",
+        symbol="AAA",
+        side=OrderSide.BUY,
+        quantity=Decimal("10"),
+        order_type=OrderType.MARKET,
+    )
+
+    result = adapter.submit_intent(intent)
+    report = adapter.build_shadow_report()
+
+    assert result.accepted is True
+    assert result.status is OrderStatus.ACKNOWLEDGED
+    assert report.mode is TradingMode.SHADOW
+    assert report.venue == "krx"
+    assert report.simulated_order_count == 1
+    assert report.simulated_fill_count == 1
+    assert len(report.lines) == 1
+    assert report.lines[0].symbol == "AAA"
+    assert report.lines[0].final_status is OrderStatus.FILLED
+    assert report.lines[0].filled_quantity == Decimal("10.0000")
+
+
+def test_shadow_adapter_rejects_orders_that_violate_venue_rules() -> None:
+    from quant_os.adapters.shadow import ShadowAdapter
+    from quant_os.domain.enums import OrderSide, OrderStatus, OrderType
+    from quant_os.domain.models import OrderIntent, PortfolioState
+
+    as_of = datetime(2026, 3, 9, 9, 0, tzinfo=timezone.utc)
+    adapter = ShadowAdapter(
+        PortfolioState(
+            as_of=as_of,
+            base_currency="KRW",
+            cash_balance=Decimal("100000"),
+            net_asset_value=Decimal("100000"),
+            positions=(),
+            market_prices={"AAA": Decimal("100")},
+        ),
+        venue="krx",
+        lot_size=Decimal("5"),
+        min_notional=Decimal("1000"),
+        commission_bps=Decimal("0"),
+        slippage_bps=Decimal("0"),
+    )
+    bad_lot = OrderIntent(
+        intent_id="intent_shadow_bad_lot",
+        strategy_run_id="run_shadow_2",
+        symbol="AAA",
+        side=OrderSide.BUY,
+        quantity=Decimal("3"),
+        order_type=OrderType.MARKET,
+    )
+    bad_notional = OrderIntent(
+        intent_id="intent_shadow_bad_notional",
+        strategy_run_id="run_shadow_2",
+        symbol="AAA",
+        side=OrderSide.BUY,
+        quantity=Decimal("5"),
+        order_type=OrderType.MARKET,
+    )
+
+    bad_lot_result = adapter.submit_intent(bad_lot)
+    adapter = ShadowAdapter(
+        PortfolioState(
+            as_of=as_of,
+            base_currency="KRW",
+            cash_balance=Decimal("100000"),
+            net_asset_value=Decimal("100000"),
+            positions=(),
+            market_prices={"AAA": Decimal("100")},
+        ),
+        venue="krx",
+        lot_size=Decimal("5"),
+        min_notional=Decimal("1000"),
+        commission_bps=Decimal("0"),
+        slippage_bps=Decimal("0"),
+    )
+    bad_notional_result = adapter.submit_intent(bad_notional)
+    report = adapter.build_shadow_report()
+
+    assert bad_lot_result.accepted is False
+    assert bad_lot_result.status is OrderStatus.PRECHECK_REJECTED
+    assert bad_notional_result.accepted is False
+    assert bad_notional_result.status is OrderStatus.PRECHECK_REJECTED
+    assert report.lines[0].final_status is OrderStatus.PRECHECK_REJECTED

@@ -1,0 +1,14 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+frontend/node_modules/
+frontend/dist/
+
+data/normalized/
+data/artifacts/
+research/*.duckdb
+var/*.db
+
+.DS_Store
