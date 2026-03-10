@@ -239,6 +239,26 @@ chmod +x scripts/install_user_service.sh
 
 이후 우선순위는 아래에 두는 것이 맞습니다.
 
+### 먼저 할 것: multi-strategy research/backtest 확장
+
+설계자 리뷰 기준 다음 단계의 최우선 작업은 live scope 확장이 아니라 연구/백테스트 확장입니다.
+
+다음 순서로 진행합니다.
+
+1. schema migration
+2. strategy registry
+3. backtest request / catalog
+4. API list / detail / compare
+
+상세 계획:
+- [Phase 6 Umbrella](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-phase-6-multi-strategy-research-backtest-expansion.md)
+- [Phase 6a Schema Migration](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-phase-6a-schema-migration-for-backtest-catalog.md)
+- [Phase 6b Strategy Registry](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-phase-6b-strategy-registry.md)
+- [Phase 6c Backtest Request/Catalog](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-phase-6c-backtest-request-catalog.md)
+- [Phase 6d API List/Detail/Compare](/home/lia/repos/my-projects/quant/docs/plans/2026-03-10-phase-6d-backtest-api-list-detail-compare.md)
+
+### 그 다음 할 것: 운영성 보강
+
 - PostgreSQL 운영 기본값 정리
 - weekly review / alert-ready summary 추가
 - scheduler / replay / runbook 보강
