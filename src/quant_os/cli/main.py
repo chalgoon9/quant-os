@@ -5,7 +5,8 @@ import uvicorn
 
 import typer
 
-from quant_os.backtest.service import run_configured_backtest
+from quant_os.backtest.request import BacktestRequest
+from quant_os.backtest.service import run_backtest_request, run_configured_backtest
 from quant_os.api.main import create_app
 from quant_os.config.loader import load_settings
 from quant_os.data_ingestion.upbit import (
@@ -90,18 +91,34 @@ def ingest_upbit_daily(
 def run_backtest(
     config: Path = Path("conf/base.yaml"),
     dataset: str | None = typer.Option(None, "--dataset", help="Override the research dataset name."),
+    strategy_id: str | None = typer.Option(None, "--strategy-id", help="Research/backtest strategy id."),
+    profile_id: str | None = typer.Option(None, "--profile-id", help="Backtest profile id."),
 ) -> None:
     """Run the configured strategy through the simple backtest engine and save the latest result artifact."""
     settings = load_settings(config)
     try:
-        artifact = run_configured_backtest(settings, dataset=dataset)
-    except (FileNotFoundError, ValueError) as exc:
+        if strategy_id is not None:
+            if profile_id is None:
+                raise typer.BadParameter("--profile-id is required when --strategy-id is provided")
+            artifact = run_backtest_request(
+                settings,
+                BacktestRequest(
+                    strategy_id=strategy_id,
+                    dataset=dataset or settings.research.market_data_dataset,
+                    profile_id=profile_id,
+                ),
+            )
+        else:
+            artifact = run_configured_backtest(settings, dataset=dataset)
+    except (FileNotFoundError, ValueError, KeyError) as exc:
         typer.echo(f"error={exc}")
         raise typer.Exit(code=1) from exc
 
     typer.echo(f"run_id={artifact.result.run_id}")
+    typer.echo(f"strategy_id={artifact.result.strategy_id}")
     typer.echo(f"strategy={artifact.result.strategy_name}")
     typer.echo(f"dataset={artifact.result.dataset}")
+    typer.echo(f"profile_id={artifact.result.profile_id}")
     typer.echo(f"path={artifact.path}")
     typer.echo(f"loaded_symbols={','.join(artifact.result.loaded_symbols)}")
     typer.echo(f"missing_symbols={','.join(artifact.result.missing_symbols)}")

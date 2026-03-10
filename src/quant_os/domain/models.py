@@ -320,6 +320,15 @@ class StrategyRun(ImmutableModel):
     strategy_name: str
     mode: str
     status: StrategyRunStatus
+    strategy_id: str | None = None
+    strategy_kind: str | None = None
+    strategy_version: str | None = None
+    dataset: str | None = None
+    profile_id: str | None = None
+    artifact_path: str | None = None
+    config_fingerprint: str | None = None
+    tags_json: tuple[str, ...] = ()
+    notes: str | None = None
     started_at: datetime = Field(default_factory=utc_now)
     finished_at: datetime | None = None
     config_payload: dict[str, object] | None = None

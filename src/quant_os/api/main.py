@@ -13,6 +13,7 @@ from quant_os.api.routes.backtests import router as backtests_router
 from quant_os.api.routes.ops import router as ops_router
 from quant_os.api.routes.reports import router as reports_router
 from quant_os.api.routes.research import router as research_router
+from quant_os.api.routes.strategies import router as strategies_router
 from quant_os.api.routes.system import router as system_router
 
 
@@ -46,6 +47,7 @@ def create_app(
     app.include_router(research_router, prefix="/api")
     app.include_router(reports_router, prefix="/api")
     app.include_router(backtests_router, prefix="/api")
+    app.include_router(strategies_router, prefix="/api")
 
     frontend_root = Path(app.state.frontend_dist)
     assets_dir = frontend_root / "assets"

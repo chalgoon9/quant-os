@@ -114,3 +114,68 @@ def test_operational_store_persists_execution_and_ops_records(tmp_path) -> None:
     assert store.latest_pnl_snapshot().nav == Decimal("100005.0000")
     assert store.latest_reconciliation_result().status is ReconciliationStatus.MISMATCH
     assert store.active_kill_switch_events()[0].reason is KillSwitchReason.RECONCILIATION_FAILURE
+
+
+def test_operational_store_persists_catalog_strategy_run_fields(tmp_path) -> None:
+    from quant_os.db.store import OperationalStore
+    from quant_os.domain.enums import StrategyRunStatus
+    from quant_os.domain.models import StrategyRun
+
+    as_of = datetime(2026, 3, 10, 0, 0, tzinfo=timezone.utc)
+    store = OperationalStore(f"sqlite:///{tmp_path / 'ops.db'}")
+    store.create_schema()
+
+    store.start_strategy_run(
+        StrategyRun(
+            strategy_run_id="run_1",
+            strategy_name="국내 ETF 일봉 20/60 모멘텀 참조 전략",
+            mode="backtest",
+            status=StrategyRunStatus.RUNNING,
+            strategy_id="kr_etf_momo_20_60_v1",
+            strategy_kind="daily_momentum",
+            strategy_version="v1",
+            dataset="krx_etf_daily",
+            profile_id="baseline",
+            artifact_path="data/artifacts/backtests/kr_etf_momo_20_60_v1/example.json",
+            config_fingerprint="abc123",
+            tags_json=("krx", "momentum"),
+            notes="unit test run",
+            started_at=as_of,
+            config_payload={"seed": "x"},
+        )
+    )
+
+    run = store.get_strategy_run("run_1")
+    filtered = store.list_strategy_runs(limit=10, strategy_id="kr_etf_momo_20_60_v1", dataset="krx_etf_daily")
+
+    assert run.strategy_id == "kr_etf_momo_20_60_v1"
+    assert run.strategy_kind == "daily_momentum"
+    assert run.profile_id == "baseline"
+    assert run.artifact_path is not None
+    assert run.config_fingerprint == "abc123"
+    assert run.tags_json == ("krx", "momentum")
+    assert run.notes == "unit test run"
+    assert len(filtered) == 1
+
+
+def test_operational_store_keeps_legacy_strategy_run_creation_compatible(tmp_path) -> None:
+    from quant_os.db.store import OperationalStore
+    from quant_os.domain.enums import StrategyRunStatus
+    from quant_os.domain.models import StrategyRun
+
+    store = OperationalStore(f"sqlite:///{tmp_path / 'ops_legacy.db'}")
+    store.create_schema()
+    store.start_strategy_run(
+        StrategyRun(
+            strategy_run_id="legacy_1",
+            strategy_name="daily_momentum",
+            mode="backtest",
+            status=StrategyRunStatus.RUNNING,
+        )
+    )
+
+    run = store.get_strategy_run("legacy_1")
+
+    assert run.strategy_id is None
+    assert run.profile_id is None
+    assert run.tags_json == ()

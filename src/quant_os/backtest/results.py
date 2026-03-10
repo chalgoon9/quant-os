@@ -13,8 +13,12 @@ from quant_os.domain.enums import OrderSide
 @dataclass(frozen=True)
 class StoredBacktestResult:
     run_id: str
+    strategy_id: str
     strategy_name: str
+    strategy_kind: str
+    strategy_version: str
     dataset: str
+    profile_id: str
     generated_at: datetime
     as_of: datetime
     initial_cash: Decimal
@@ -26,6 +30,8 @@ class StoredBacktestResult:
     missing_symbols: tuple[str, ...]
     equity_curve: tuple[EquityPoint, ...]
     trades: tuple[SimulatedTrade, ...]
+    tags: tuple[str, ...] = ()
+    notes: str | None = None
 
 
 class BacktestArtifactStore:
@@ -34,7 +40,9 @@ class BacktestArtifactStore:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def save(self, result: StoredBacktestResult) -> Path:
-        file_path = self.root / f"{result.generated_at.strftime('%Y%m%dT%H%M%SZ')}_{result.run_id}.json"
+        strategy_root = self.root / result.strategy_id
+        strategy_root.mkdir(parents=True, exist_ok=True)
+        file_path = strategy_root / f"{result.generated_at.strftime('%Y%m%dT%H%M%SZ')}_{result.run_id}.json"
         latest_path = self.root / "latest.json"
         payload = _result_to_payload(result)
         _write_json(file_path, payload)
@@ -47,12 +55,28 @@ class BacktestArtifactStore:
             raise FileNotFoundError(f"latest backtest result not found: {latest_path}")
         return _payload_to_result(json.loads(latest_path.read_text(encoding="utf-8")))
 
+    def load(self, run_id: str) -> StoredBacktestResult:
+        matches = sorted(self.root.glob(f"**/*_{run_id}.json"))
+        if not matches:
+            raise FileNotFoundError(f"backtest run not found: {run_id}")
+        return self.load_path(matches[-1])
+
+    def load_path(self, path: str | Path) -> StoredBacktestResult:
+        target = Path(path)
+        if not target.exists():
+            raise FileNotFoundError(f"backtest artifact not found: {target}")
+        return _payload_to_result(json.loads(target.read_text(encoding="utf-8")))
+
 
 def _result_to_payload(result: StoredBacktestResult) -> dict[str, object]:
     return {
         "run_id": result.run_id,
+        "strategy_id": result.strategy_id,
         "strategy_name": result.strategy_name,
+        "strategy_kind": result.strategy_kind,
+        "strategy_version": result.strategy_version,
         "dataset": result.dataset,
+        "profile_id": result.profile_id,
         "generated_at": result.generated_at.isoformat(),
         "as_of": result.as_of.isoformat(),
         "initial_cash": str(result.initial_cash),
@@ -62,6 +86,8 @@ def _result_to_payload(result: StoredBacktestResult) -> dict[str, object]:
         "trade_count": result.trade_count,
         "loaded_symbols": list(result.loaded_symbols),
         "missing_symbols": list(result.missing_symbols),
+        "tags": list(result.tags),
+        "notes": result.notes,
         "equity_curve": [
             {
                 "timestamp": point.timestamp.isoformat(),
@@ -87,8 +113,12 @@ def _result_to_payload(result: StoredBacktestResult) -> dict[str, object]:
 def _payload_to_result(payload: dict[str, object]) -> StoredBacktestResult:
     return StoredBacktestResult(
         run_id=str(payload["run_id"]),
+        strategy_id=str(payload.get("strategy_id") or payload["strategy_name"]),
         strategy_name=str(payload["strategy_name"]),
+        strategy_kind=str(payload.get("strategy_kind") or "daily_momentum"),
+        strategy_version=str(payload.get("strategy_version") or "runtime"),
         dataset=str(payload["dataset"]),
+        profile_id=str(payload.get("profile_id") or "runtime-config"),
         generated_at=datetime.fromisoformat(str(payload["generated_at"])),
         as_of=datetime.fromisoformat(str(payload["as_of"])),
         initial_cash=Decimal(str(payload["initial_cash"])),
@@ -98,6 +128,8 @@ def _payload_to_result(payload: dict[str, object]) -> StoredBacktestResult:
         trade_count=int(payload["trade_count"]),
         loaded_symbols=tuple(str(symbol) for symbol in payload.get("loaded_symbols", [])),
         missing_symbols=tuple(str(symbol) for symbol in payload.get("missing_symbols", [])),
+        tags=tuple(str(tag) for tag in payload.get("tags", [])),
+        notes=str(payload["notes"]) if payload.get("notes") is not None else None,
         equity_curve=tuple(
             EquityPoint(
                 timestamp=datetime.fromisoformat(str(item["timestamp"])),

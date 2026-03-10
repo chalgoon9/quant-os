@@ -1,0 +1,22 @@
+strategy_id: kr_etf_momo_20_60_v1
+kind: daily_momentum
+version: v1
+description: 국내 ETF 일봉 20/60 모멘텀 참조 전략
+dataset_default: krx_etf_daily
+universe:
+  - "069500"
+  - "114800"
+  - "122630"
+  - "229200"
+  - "233740"
+rebalance_calendar: daily
+params:
+  max_names: 3
+  target_gross_exposure_limit: "0.95"
+  fast_lookback: 20
+  slow_lookback: 60
+  trend_lookback: 40
+tags:
+  - krx
+  - etf
+  - momentum

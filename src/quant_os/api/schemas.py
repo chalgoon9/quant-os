@@ -203,8 +203,12 @@ class DailyReportResponse(ApiModel):
 
 class BacktestSummaryResponse(ApiModel):
     run_id: str
+    strategy_id: str
     strategy_name: str
+    strategy_kind: str
+    strategy_version: str
     dataset: str
+    profile_id: str
     generated_at: str
     as_of: str
     initial_cash: str
@@ -214,6 +218,27 @@ class BacktestSummaryResponse(ApiModel):
     trade_count: int
     loaded_symbols: list[str]
     missing_symbols: list[str]
+
+
+class BacktestRunListItemResponse(ApiModel):
+    run_id: str
+    strategy_id: str | None = None
+    strategy_name: str
+    strategy_kind: str | None = None
+    strategy_version: str | None = None
+    dataset: str | None = None
+    profile_id: str | None = None
+    status: str
+    started_at: str
+    finished_at: str | None = None
+    final_nav: str | None = None
+    total_return: str | None = None
+    max_drawdown: str | None = None
+    trade_count: int | None = None
+
+
+class BacktestRunListResponse(ApiModel):
+    items: list[BacktestRunListItemResponse]
 
 
 class BacktestEquityPointResponse(ApiModel):
@@ -235,6 +260,27 @@ class BacktestDetailResponse(ApiModel):
     summary: BacktestSummaryResponse
     equity_curve: list[BacktestEquityPointResponse]
     trades: list[BacktestTradeResponse]
+
+
+class BacktestCompareRequest(ApiModel):
+    run_ids: list[str] = Field(min_length=2, max_length=5)
+
+
+class BacktestCompareResponse(ApiModel):
+    items: list[BacktestSummaryResponse]
+
+
+class StrategyCatalogItemResponse(ApiModel):
+    strategy_id: str
+    kind: str
+    version: str
+    description: str
+    dataset_default: str
+    tags: list[str]
+
+
+class StrategyCatalogResponse(ApiModel):
+    items: list[StrategyCatalogItemResponse]
 
 
 def order_list_item_from_domain(projection: OrderProjection) -> OrderListItem:
@@ -365,20 +411,7 @@ def daily_report_from_domain(report: DailyReport) -> DailyReportResponse:
 
 def backtest_detail_from_domain(result: StoredBacktestResult) -> BacktestDetailResponse:
     return BacktestDetailResponse(
-        summary=BacktestSummaryResponse(
-            run_id=result.run_id,
-            strategy_name=result.strategy_name,
-            dataset=result.dataset,
-            generated_at=_iso_datetime(result.generated_at),
-            as_of=_iso_datetime(result.as_of),
-            initial_cash=_decimal_string(result.initial_cash, digits="0.0000"),
-            final_nav=_decimal_string(result.final_nav, digits="0.0000"),
-            total_return=_decimal_string(result.total_return, digits="0.0000"),
-            max_drawdown=_decimal_string(result.max_drawdown, digits="0.0000"),
-            trade_count=result.trade_count,
-            loaded_symbols=list(result.loaded_symbols),
-            missing_symbols=list(result.missing_symbols),
-        ),
+        summary=backtest_summary_from_domain(result),
         equity_curve=[
             BacktestEquityPointResponse(
                 timestamp=_iso_datetime(point.timestamp),
@@ -398,6 +431,27 @@ def backtest_detail_from_domain(result: StoredBacktestResult) -> BacktestDetailR
             )
             for trade in result.trades
         ],
+    )
+
+
+def backtest_summary_from_domain(result: StoredBacktestResult) -> BacktestSummaryResponse:
+    return BacktestSummaryResponse(
+        run_id=result.run_id,
+        strategy_id=result.strategy_id,
+        strategy_name=result.strategy_name,
+        strategy_kind=result.strategy_kind,
+        strategy_version=result.strategy_version,
+        dataset=result.dataset,
+        profile_id=result.profile_id,
+        generated_at=_iso_datetime(result.generated_at),
+        as_of=_iso_datetime(result.as_of),
+        initial_cash=_decimal_string(result.initial_cash, digits="0.0000"),
+        final_nav=_decimal_string(result.final_nav, digits="0.0000"),
+        total_return=_decimal_string(result.total_return, digits="0.0000"),
+        max_drawdown=_decimal_string(result.max_drawdown, digits="0.0000"),
+        trade_count=result.trade_count,
+        loaded_symbols=list(result.loaded_symbols),
+        missing_symbols=list(result.missing_symbols),
     )
 
 

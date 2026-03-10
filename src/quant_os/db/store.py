@@ -54,6 +54,15 @@ class OperationalStore:
             record.strategy_name = run.strategy_name
             record.mode = run.mode
             record.status = run.status.value
+            record.strategy_id = run.strategy_id
+            record.strategy_kind = run.strategy_kind
+            record.strategy_version = run.strategy_version
+            record.dataset = run.dataset
+            record.profile_id = run.profile_id
+            record.artifact_path = run.artifact_path
+            record.config_fingerprint = run.config_fingerprint
+            record.tags_json = list(run.tags_json) if run.tags_json else None
+            record.notes = run.notes
             record.started_at = run.started_at
             record.finished_at = run.finished_at
             record.config_payload = run.config_payload
@@ -65,6 +74,7 @@ class OperationalStore:
         status: StrategyRunStatus,
         finished_at,
         config_payload: dict[str, object] | None = None,
+        artifact_path: str | None = None,
     ) -> None:
         with self._session() as session:
             record = session.get(StrategyRunRecord, strategy_run_id)
@@ -72,6 +82,8 @@ class OperationalStore:
                 raise KeyError(f"unknown strategy run: {strategy_run_id}")
             record.status = status.value
             record.finished_at = finished_at
+            if artifact_path is not None:
+                record.artifact_path = artifact_path
             if config_payload is not None:
                 record.config_payload = config_payload
 
@@ -80,35 +92,33 @@ class OperationalStore:
             record = session.get(StrategyRunRecord, strategy_run_id)
             if record is None:
                 raise KeyError(f"unknown strategy run: {strategy_run_id}")
-        return StrategyRun(
-            strategy_run_id=record.id,
-            strategy_name=record.strategy_name,
-            mode=record.mode,
-            status=record.status,
-            started_at=record.started_at,
-            finished_at=record.finished_at,
-            config_payload=record.config_payload,
-        )
+        return _strategy_run_from_record(record)
 
-    def list_strategy_runs(self, limit: int = 50) -> list[StrategyRun]:
+    def list_strategy_runs(
+        self,
+        limit: int = 50,
+        *,
+        strategy_id: str | None = None,
+        dataset: str | None = None,
+        profile_id: str | None = None,
+        mode: str | None = None,
+    ) -> list[StrategyRun]:
         if limit <= 0:
             raise ValueError("limit must be positive")
         with self._session() as session:
+            statement = select(StrategyRunRecord)
+            if strategy_id is not None:
+                statement = statement.where(StrategyRunRecord.strategy_id == strategy_id)
+            if dataset is not None:
+                statement = statement.where(StrategyRunRecord.dataset == dataset)
+            if profile_id is not None:
+                statement = statement.where(StrategyRunRecord.profile_id == profile_id)
+            if mode is not None:
+                statement = statement.where(StrategyRunRecord.mode == mode)
             records = session.scalars(
-                select(StrategyRunRecord).order_by(StrategyRunRecord.started_at.desc()).limit(limit)
+                statement.order_by(StrategyRunRecord.started_at.desc()).limit(limit)
             ).all()
-        return [
-            StrategyRun(
-                strategy_run_id=record.id,
-                strategy_name=record.strategy_name,
-                mode=record.mode,
-                status=record.status,
-                started_at=record.started_at,
-                finished_at=record.finished_at,
-                config_payload=record.config_payload,
-            )
-            for record in records
-        ]
+        return [_strategy_run_from_record(record) for record in records]
 
     def append_order_event(self, event: OrderEvent) -> None:
         with self._session() as session:
@@ -533,6 +543,27 @@ def _position_from_snapshot(record: PositionSnapshotRecord):
         quantity=record.quantity,
         average_cost=record.average_cost,
         market_price=record.market_price,
+    )
+
+
+def _strategy_run_from_record(record: StrategyRunRecord) -> StrategyRun:
+    return StrategyRun(
+        strategy_run_id=record.id,
+        strategy_name=record.strategy_name,
+        mode=record.mode,
+        status=record.status,
+        strategy_id=record.strategy_id,
+        strategy_kind=record.strategy_kind,
+        strategy_version=record.strategy_version,
+        dataset=record.dataset,
+        profile_id=record.profile_id,
+        artifact_path=record.artifact_path,
+        config_fingerprint=record.config_fingerprint,
+        tags_json=tuple(record.tags_json or ()),
+        notes=record.notes,
+        started_at=record.started_at,
+        finished_at=record.finished_at,
+        config_payload=record.config_payload,
     )
 
 
