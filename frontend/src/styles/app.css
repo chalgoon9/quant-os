@@ -30,7 +30,8 @@ a {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -235,6 +236,10 @@ button {
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.52fr);
 }
 
+.page-grid--backtests {
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.95fr);
+}
+
 .panel--span-full {
   grid-column: 1 / -1;
 }
@@ -391,6 +396,10 @@ button {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.table__row--selected {
+  background: rgba(93, 168, 255, 0.08);
+}
+
 .drawer {
   border-radius: 22px;
   display: grid;
@@ -512,6 +521,15 @@ button {
   padding: 12px 14px;
 }
 
+.field select {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  color: inherit;
+  padding: 12px 14px;
+}
+
 .field--inline {
   min-width: 220px;
 }
@@ -533,6 +551,27 @@ button {
 .state-panel p {
   color: #a2afc1;
   margin: 0;
+}
+
+.muted-text {
+  color: #97a7bd;
+  margin: 0;
+}
+
+.code-block {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 18px;
+  overflow: auto;
+  padding: 18px;
+}
+
+.code-block pre {
+  color: #dbe6f2;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.83rem;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .result-card {

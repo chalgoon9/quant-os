@@ -14,6 +14,8 @@ class BacktestProfile(ImmutableModel):
     description: str
     commission_bps: Decimal = Field(ge=0, default=Decimal("0"))
     slippage_bps: Decimal = Field(ge=0, default=Decimal("0"))
+    sell_tax_bps: Decimal = Field(ge=0, default=Decimal("0"))
+    max_bar_volume_share: Decimal = Field(gt=0, le=1, default=Decimal("1"))
     initial_cash: Decimal | None = Field(default=None, gt=0)
 
     def to_backtest_settings(self, fallback: BacktestSettings) -> BacktestSettings:
@@ -21,6 +23,8 @@ class BacktestProfile(ImmutableModel):
             initial_cash=self.initial_cash or fallback.initial_cash,
             commission_bps=self.commission_bps,
             slippage_bps=self.slippage_bps,
+            sell_tax_bps=self.sell_tax_bps,
+            max_bar_volume_share=self.max_bar_volume_share,
         )
 
 

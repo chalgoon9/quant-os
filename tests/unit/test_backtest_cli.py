@@ -49,6 +49,9 @@ def test_run_backtest_command_writes_latest_artifact(tmp_path) -> None:
     assert "strategy=daily_momentum" in result.stdout
     assert "profile_id=runtime-config" in result.stdout
     assert "trade_count=" in result.stdout
+    assert "total_turnover=" in result.stdout
+    assert "total_commission=" in result.stdout
+    assert "total_tax=" in result.stdout
     assert latest_path.exists()
     assert strategy_run.status is StrategyRunStatus.SUCCEEDED
     assert strategy_run.config_payload is not None

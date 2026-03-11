@@ -198,3 +198,12 @@ export function humanizeReconciliationIssueCode(value: string) {
       return humanizeStatus(value);
   }
 }
+
+export function humanizeStrategyKind(value: string) {
+  switch (value) {
+    case "daily_momentum":
+      return "일봉 모멘텀";
+    default:
+      return titleCase(value);
+  }
+}

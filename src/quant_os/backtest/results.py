@@ -6,7 +6,7 @@ from decimal import Decimal
 import json
 from pathlib import Path
 
-from quant_os.backtest.simple import EquityPoint, SimulatedTrade
+from quant_os.backtest.simple import DrawdownPoint, EquityPoint, PositionPoint, PositionSnapshot, SimulatedTrade
 from quant_os.domain.enums import OrderSide
 
 
@@ -25,11 +25,19 @@ class StoredBacktestResult:
     final_nav: Decimal
     total_return: Decimal
     max_drawdown: Decimal
+    total_turnover: Decimal
+    total_commission: Decimal
+    total_tax: Decimal
+    total_slippage_cost: Decimal
+    total_traded_notional: Decimal
     trade_count: int
     loaded_symbols: tuple[str, ...]
     missing_symbols: tuple[str, ...]
     equity_curve: tuple[EquityPoint, ...]
+    drawdown_curve: tuple[DrawdownPoint, ...]
+    position_path: tuple[PositionSnapshot, ...]
     trades: tuple[SimulatedTrade, ...]
+    parameter_report: dict[str, object] | None = None
     tags: tuple[str, ...] = ()
     notes: str | None = None
 
@@ -83,9 +91,15 @@ def _result_to_payload(result: StoredBacktestResult) -> dict[str, object]:
         "final_nav": str(result.final_nav),
         "total_return": str(result.total_return),
         "max_drawdown": str(result.max_drawdown),
+        "total_turnover": str(result.total_turnover),
+        "total_commission": str(result.total_commission),
+        "total_tax": str(result.total_tax),
+        "total_slippage_cost": str(result.total_slippage_cost),
+        "total_traded_notional": str(result.total_traded_notional),
         "trade_count": result.trade_count,
         "loaded_symbols": list(result.loaded_symbols),
         "missing_symbols": list(result.missing_symbols),
+        "parameter_report": result.parameter_report,
         "tags": list(result.tags),
         "notes": result.notes,
         "equity_curve": [
@@ -95,6 +109,29 @@ def _result_to_payload(result: StoredBacktestResult) -> dict[str, object]:
                 "cash": str(point.cash),
             }
             for point in result.equity_curve
+        ],
+        "drawdown_curve": [
+            {
+                "timestamp": point.timestamp.isoformat(),
+                "drawdown": str(point.drawdown),
+            }
+            for point in result.drawdown_curve
+        ],
+        "position_path": [
+            {
+                "timestamp": snapshot.timestamp.isoformat(),
+                "positions": [
+                    {
+                        "symbol": position.symbol,
+                        "quantity": str(position.quantity),
+                        "market_price": str(position.market_price),
+                        "market_value": str(position.market_value),
+                        "weight": str(position.weight),
+                    }
+                    for position in snapshot.positions
+                ],
+            }
+            for snapshot in result.position_path
         ],
         "trades": [
             {
@@ -125,9 +162,15 @@ def _payload_to_result(payload: dict[str, object]) -> StoredBacktestResult:
         final_nav=Decimal(str(payload["final_nav"])),
         total_return=Decimal(str(payload["total_return"])),
         max_drawdown=Decimal(str(payload["max_drawdown"])),
+        total_turnover=Decimal(str(payload.get("total_turnover", "0"))),
+        total_commission=Decimal(str(payload.get("total_commission", "0"))),
+        total_tax=Decimal(str(payload.get("total_tax", "0"))),
+        total_slippage_cost=Decimal(str(payload.get("total_slippage_cost", "0"))),
+        total_traded_notional=Decimal(str(payload.get("total_traded_notional", "0"))),
         trade_count=int(payload["trade_count"]),
         loaded_symbols=tuple(str(symbol) for symbol in payload.get("loaded_symbols", [])),
         missing_symbols=tuple(str(symbol) for symbol in payload.get("missing_symbols", [])),
+        parameter_report=dict(payload["parameter_report"]) if isinstance(payload.get("parameter_report"), dict) else None,
         tags=tuple(str(tag) for tag in payload.get("tags", [])),
         notes=str(payload["notes"]) if payload.get("notes") is not None else None,
         equity_curve=tuple(
@@ -137,6 +180,29 @@ def _payload_to_result(payload: dict[str, object]) -> StoredBacktestResult:
                 cash=Decimal(str(item["cash"])),
             )
             for item in payload.get("equity_curve", [])
+        ),
+        drawdown_curve=tuple(
+            DrawdownPoint(
+                timestamp=datetime.fromisoformat(str(item["timestamp"])),
+                drawdown=Decimal(str(item["drawdown"])),
+            )
+            for item in payload.get("drawdown_curve", [])
+        ),
+        position_path=tuple(
+            PositionSnapshot(
+                timestamp=datetime.fromisoformat(str(item["timestamp"])),
+                positions=tuple(
+                    PositionPoint(
+                        symbol=str(position["symbol"]),
+                        quantity=Decimal(str(position["quantity"])),
+                        market_price=Decimal(str(position["market_price"])),
+                        market_value=Decimal(str(position["market_value"])),
+                        weight=Decimal(str(position["weight"])),
+                    )
+                    for position in item.get("positions", [])
+                ),
+            )
+            for item in payload.get("position_path", [])
         ),
         trades=tuple(
             SimulatedTrade(

@@ -215,6 +215,11 @@ class BacktestSummaryResponse(ApiModel):
     final_nav: str
     total_return: str
     max_drawdown: str
+    total_turnover: str
+    total_commission: str
+    total_tax: str
+    total_slippage_cost: str
+    total_traded_notional: str
     trade_count: int
     loaded_symbols: list[str]
     missing_symbols: list[str]
@@ -234,6 +239,8 @@ class BacktestRunListItemResponse(ApiModel):
     final_nav: str | None = None
     total_return: str | None = None
     max_drawdown: str | None = None
+    total_turnover: str | None = None
+    total_tax: str | None = None
     trade_count: int | None = None
 
 
@@ -245,6 +252,24 @@ class BacktestEquityPointResponse(ApiModel):
     timestamp: str
     nav: str
     cash: str
+
+
+class BacktestDrawdownPointResponse(ApiModel):
+    timestamp: str
+    drawdown: str
+
+
+class BacktestPositionPointResponse(ApiModel):
+    symbol: str
+    quantity: str
+    market_price: str
+    market_value: str
+    weight: str
+
+
+class BacktestPositionSnapshotResponse(ApiModel):
+    timestamp: str
+    positions: list[BacktestPositionPointResponse]
 
 
 class BacktestTradeResponse(ApiModel):
@@ -259,7 +284,10 @@ class BacktestTradeResponse(ApiModel):
 class BacktestDetailResponse(ApiModel):
     summary: BacktestSummaryResponse
     equity_curve: list[BacktestEquityPointResponse]
+    drawdown_curve: list[BacktestDrawdownPointResponse]
+    position_path: list[BacktestPositionSnapshotResponse]
     trades: list[BacktestTradeResponse]
+    parameter_report: dict[str, object] | None = None
 
 
 class BacktestCompareRequest(ApiModel):
@@ -420,6 +448,29 @@ def backtest_detail_from_domain(result: StoredBacktestResult) -> BacktestDetailR
             )
             for point in result.equity_curve
         ],
+        drawdown_curve=[
+            BacktestDrawdownPointResponse(
+                timestamp=_iso_datetime(point.timestamp),
+                drawdown=_decimal_string(point.drawdown, digits="0.0000"),
+            )
+            for point in result.drawdown_curve
+        ],
+        position_path=[
+            BacktestPositionSnapshotResponse(
+                timestamp=_iso_datetime(snapshot.timestamp),
+                positions=[
+                    BacktestPositionPointResponse(
+                        symbol=position.symbol,
+                        quantity=_decimal_string(position.quantity, digits="0.0000"),
+                        market_price=_decimal_string(position.market_price, digits="0.0000"),
+                        market_value=_decimal_string(position.market_value, digits="0.0000"),
+                        weight=_decimal_string(position.weight, digits="0.0000"),
+                    )
+                    for position in snapshot.positions
+                ],
+            )
+            for snapshot in result.position_path
+        ],
         trades=[
             BacktestTradeResponse(
                 timestamp=_iso_datetime(trade.timestamp),
@@ -431,6 +482,7 @@ def backtest_detail_from_domain(result: StoredBacktestResult) -> BacktestDetailR
             )
             for trade in result.trades
         ],
+        parameter_report=result.parameter_report,
     )
 
 
@@ -449,6 +501,11 @@ def backtest_summary_from_domain(result: StoredBacktestResult) -> BacktestSummar
         final_nav=_decimal_string(result.final_nav, digits="0.0000"),
         total_return=_decimal_string(result.total_return, digits="0.0000"),
         max_drawdown=_decimal_string(result.max_drawdown, digits="0.0000"),
+        total_turnover=_decimal_string(result.total_turnover, digits="0.0000"),
+        total_commission=_decimal_string(result.total_commission, digits="0.0000"),
+        total_tax=_decimal_string(result.total_tax, digits="0.0000"),
+        total_slippage_cost=_decimal_string(result.total_slippage_cost, digits="0.0000"),
+        total_traded_notional=_decimal_string(result.total_traded_notional, digits="0.0000"),
         trade_count=result.trade_count,
         loaded_symbols=list(result.loaded_symbols),
         missing_symbols=list(result.missing_symbols),

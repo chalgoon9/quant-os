@@ -99,6 +99,7 @@ class BacktestOrchestrator:
         request_payload = request.model_dump(mode="json")
         spec_payload = spec.model_dump(mode="json")
         profile_payload = profile.model_dump(mode="json")
+        resolved_backtest_settings = profile.to_backtest_settings(self.system.backtest)
         settings_payload = {
             "trigger": "run-backtest",
             "strategy_id": spec.strategy_id,
@@ -110,6 +111,7 @@ class BacktestOrchestrator:
             "request": request_payload,
             "strategy_spec": spec_payload,
             "profile": profile_payload,
+            "backtest_settings": resolved_backtest_settings.model_dump(mode="json"),
         }
         config_fingerprint = hashlib.sha256(
             json.dumps(settings_payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
@@ -145,7 +147,7 @@ class BacktestOrchestrator:
                 strategy=strategy_registry.build(spec, bars_by_symbol),
                 risk_manager=SimpleRiskManager(self.system.risk),
                 intent_generator=TargetExposureIntentGenerator(self.system.intent, strategy_run_id=run_id),
-                settings=profile.to_backtest_settings(self.system.backtest),
+                settings=resolved_backtest_settings,
             ).run()
             generated_at = datetime.now(tz=timezone.utc)
             as_of = raw_result.equity_curve[-1].timestamp if raw_result.equity_curve else generated_at
@@ -165,11 +167,26 @@ class BacktestOrchestrator:
                 final_nav=raw_result.final_nav,
                 total_return=total_return,
                 max_drawdown=raw_result.max_drawdown,
+                total_turnover=raw_result.total_turnover,
+                total_commission=raw_result.total_commission,
+                total_tax=raw_result.total_tax,
+                total_slippage_cost=raw_result.total_slippage_cost,
+                total_traded_notional=raw_result.total_traded_notional,
                 trade_count=raw_result.trade_count,
                 loaded_symbols=loaded_symbols,
                 missing_symbols=missing_symbols,
                 equity_curve=raw_result.equity_curve,
+                drawdown_curve=raw_result.drawdown_curve,
+                position_path=raw_result.position_path,
                 trades=raw_result.trades,
+                parameter_report={
+                    "request": request_payload,
+                    "strategy_spec": spec_payload,
+                    "profile": profile_payload,
+                    "risk_policy": self.system.risk.model_dump(mode="json"),
+                    "intent_policy": self.system.intent.model_dump(mode="json"),
+                    "backtest_settings": resolved_backtest_settings.model_dump(mode="json"),
+                },
                 tags=request.tags or spec.tags,
                 notes=request.notes,
             )
@@ -188,6 +205,11 @@ class BacktestOrchestrator:
                     "final_nav": str(stored_result.final_nav),
                     "total_return": str(stored_result.total_return),
                     "max_drawdown": str(stored_result.max_drawdown),
+                    "total_turnover": str(stored_result.total_turnover),
+                    "total_commission": str(stored_result.total_commission),
+                    "total_tax": str(stored_result.total_tax),
+                    "total_slippage_cost": str(stored_result.total_slippage_cost),
+                    "total_traded_notional": str(stored_result.total_traded_notional),
                     "trade_count": stored_result.trade_count,
                 },
             )

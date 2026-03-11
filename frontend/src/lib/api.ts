@@ -180,23 +180,73 @@ export type DailyReportResponse = {
 
 export type BacktestSummaryDto = {
   run_id: string;
+  strategy_id: string;
   strategy_name: string;
+  strategy_kind: string;
+  strategy_version: string;
   dataset: string;
+  profile_id: string;
   generated_at: string;
   as_of: string;
   initial_cash: string;
   final_nav: string;
   total_return: string;
   max_drawdown: string;
+  total_turnover: string;
+  total_commission: string;
+  total_tax: string;
+  total_slippage_cost: string;
+  total_traded_notional: string;
   trade_count: number;
   loaded_symbols: string[];
   missing_symbols: string[];
+};
+
+export type BacktestRunListItemDto = {
+  run_id: string;
+  strategy_id: string | null;
+  strategy_name: string;
+  strategy_kind: string | null;
+  strategy_version: string | null;
+  dataset: string | null;
+  profile_id: string | null;
+  status: string;
+  started_at: string;
+  finished_at: string | null;
+  final_nav: string | null;
+  total_return: string | null;
+  max_drawdown: string | null;
+  total_turnover: string | null;
+  total_tax: string | null;
+  trade_count: number | null;
+};
+
+export type BacktestRunListResponse = {
+  items: BacktestRunListItemDto[];
 };
 
 export type BacktestEquityPointDto = {
   timestamp: string;
   nav: string;
   cash: string;
+};
+
+export type BacktestDrawdownPointDto = {
+  timestamp: string;
+  drawdown: string;
+};
+
+export type BacktestPositionPointDto = {
+  symbol: string;
+  quantity: string;
+  market_price: string;
+  market_value: string;
+  weight: string;
+};
+
+export type BacktestPositionSnapshotDto = {
+  timestamp: string;
+  positions: BacktestPositionPointDto[];
 };
 
 export type BacktestTradeDto = {
@@ -211,7 +261,27 @@ export type BacktestTradeDto = {
 export type BacktestDetailResponse = {
   summary: BacktestSummaryDto;
   equity_curve: BacktestEquityPointDto[];
+  drawdown_curve: BacktestDrawdownPointDto[];
+  position_path: BacktestPositionSnapshotDto[];
   trades: BacktestTradeDto[];
+  parameter_report: Record<string, unknown> | null;
+};
+
+export type BacktestCompareResponse = {
+  items: BacktestSummaryDto[];
+};
+
+export type StrategyCatalogItemDto = {
+  strategy_id: string;
+  kind: string;
+  version: string;
+  description: string;
+  dataset_default: string;
+  tags: string[];
+};
+
+export type StrategyCatalogResponse = {
+  items: StrategyCatalogItemDto[];
 };
 
 type ErrorBody = {
@@ -325,4 +395,33 @@ export function getDailyReportLatest() {
 
 export function getBacktestLatest() {
   return requestJson<BacktestDetailResponse>("/backtests/latest");
+}
+
+export function getBacktestRuns(params?: {
+  strategyId?: string;
+  dataset?: string;
+  profileId?: string;
+  limit?: number;
+}) {
+  return requestJson<BacktestRunListResponse>("/backtests/runs", undefined, {
+    strategy_id: params?.strategyId,
+    dataset: params?.dataset,
+    profile_id: params?.profileId,
+    limit: params?.limit ?? 20,
+  });
+}
+
+export function getBacktestRunDetail(runId: string) {
+  return requestJson<BacktestDetailResponse>(`/backtests/runs/${runId}`);
+}
+
+export function postBacktestCompare(runIds: string[]) {
+  return requestJson<BacktestCompareResponse>("/backtests/compare", {
+    method: "POST",
+    body: JSON.stringify({ run_ids: runIds }),
+  });
+}
+
+export function getStrategies() {
+  return requestJson<StrategyCatalogResponse>("/strategies");
 }

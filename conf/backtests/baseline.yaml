@@ -2,4 +2,6 @@ profile_id: baseline
 description: 기본 비용 가정 백테스트 프로파일
 commission_bps: "5"
 slippage_bps: "5"
+sell_tax_bps: "0"
+max_bar_volume_share: "0.20"
 initial_cash: "10000000"

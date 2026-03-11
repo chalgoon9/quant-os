@@ -69,6 +69,8 @@ def list_backtest_runs(
                 final_nav=str(payload["final_nav"]) if payload.get("final_nav") is not None else None,
                 total_return=str(payload["total_return"]) if payload.get("total_return") is not None else None,
                 max_drawdown=str(payload["max_drawdown"]) if payload.get("max_drawdown") is not None else None,
+                total_turnover=str(payload["total_turnover"]) if payload.get("total_turnover") is not None else None,
+                total_tax=str(payload["total_tax"]) if payload.get("total_tax") is not None else None,
                 trade_count=int(payload["trade_count"]) if payload.get("trade_count") is not None else None,
             )
         )

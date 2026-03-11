@@ -212,7 +212,13 @@ def test_cli_ingest_upbit_daily_writes_dataset(tmp_path: Path, monkeypatch) -> N
             "default_order_type": "market",
             "time_in_force": "day",
         },
-        "backtest": {"initial_cash": "10000000", "commission_bps": "5", "slippage_bps": "5"},
+        "backtest": {
+            "initial_cash": "10000000",
+            "commission_bps": "5",
+            "slippage_bps": "5",
+            "sell_tax_bps": "0",
+            "max_bar_volume_share": "0.20",
+        },
         "controls": {
             "reconciliation_cash_tolerance": "1",
             "reconciliation_position_tolerance": "0.001",

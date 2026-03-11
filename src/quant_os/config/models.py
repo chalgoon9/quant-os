@@ -88,6 +88,8 @@ class BacktestSection(ConfigModel):
     initial_cash: Decimal = Field(gt=0)
     commission_bps: Decimal = Field(ge=0, default=0)
     slippage_bps: Decimal = Field(ge=0, default=0)
+    sell_tax_bps: Decimal = Field(ge=0, default=0)
+    max_bar_volume_share: Decimal = Field(gt=0, le=1, default=1)
 
 
 class ControlsSection(ConfigModel):
@@ -169,6 +171,8 @@ class AppSettings(ConfigModel):
                 initial_cash=self.backtest.initial_cash,
                 commission_bps=self.backtest.commission_bps,
                 slippage_bps=self.backtest.slippage_bps,
+                sell_tax_bps=self.backtest.sell_tax_bps,
+                max_bar_volume_share=self.backtest.max_bar_volume_share,
             ),
             controls=ControlSettings(
                 reconciliation_cash_tolerance=self.controls.reconciliation_cash_tolerance,

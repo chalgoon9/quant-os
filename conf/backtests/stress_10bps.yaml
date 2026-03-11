@@ -2,4 +2,6 @@ profile_id: stress_10bps
 description: 비용 10bps 스트레스 프로파일
 commission_bps: "10"
 slippage_bps: "10"
+sell_tax_bps: "0"
+max_bar_volume_share: "0.10"
 initial_cash: "10000000"

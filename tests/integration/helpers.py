@@ -60,6 +60,8 @@ def write_test_config(tmp_path: Path) -> Path:
             "initial_cash": "10000000",
             "commission_bps": "5",
             "slippage_bps": "5",
+            "sell_tax_bps": "0",
+            "max_bar_volume_share": "0.20",
         },
         "controls": {
             "reconciliation_cash_tolerance": "1",

@@ -125,6 +125,11 @@ def run_backtest(
     typer.echo(f"final_nav={artifact.result.final_nav}")
     typer.echo(f"total_return={artifact.result.total_return}")
     typer.echo(f"max_drawdown={artifact.result.max_drawdown}")
+    typer.echo(f"total_turnover={artifact.result.total_turnover}")
+    typer.echo(f"total_traded_notional={artifact.result.total_traded_notional}")
+    typer.echo(f"total_commission={artifact.result.total_commission}")
+    typer.echo(f"total_tax={artifact.result.total_tax}")
+    typer.echo(f"total_slippage_cost={artifact.result.total_slippage_cost}")
     typer.echo(f"trade_count={artifact.result.trade_count}")
 
 

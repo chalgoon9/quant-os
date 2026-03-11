@@ -22,7 +22,11 @@ def test_backtest_latest_route_returns_saved_result(tmp_path) -> None:
     assert payload["summary"]["strategy_name"] == "daily_momentum"
     assert payload["summary"]["dataset"] == "krx_etf_daily"
     assert payload["summary"]["trade_count"] >= 1
+    assert "total_turnover" in payload["summary"]
+    assert "total_tax" in payload["summary"]
     assert len(payload["equity_curve"]) >= 1
+    assert len(payload["drawdown_curve"]) >= 1
+    assert "parameter_report" in payload
 
 
 def test_backtest_latest_route_returns_explicit_error_when_missing(tmp_path) -> None:
@@ -88,4 +92,7 @@ def test_backtest_run_explorer_routes_list_detail_and_compare(tmp_path) -> None:
     assert compare_response.status_code == 200
     assert {item["run_id"] for item in list_response.json()["items"]} >= {first.result.run_id, second.result.run_id}
     assert detail_response.json()["summary"]["strategy_id"] == "kr_etf_momo_20_60_v1"
+    assert "total_turnover" in detail_response.json()["summary"]
+    assert "total_tax" in detail_response.json()["summary"]
+    assert "position_path" in detail_response.json()
     assert len(compare_response.json()["items"]) == 2

@@ -283,6 +283,8 @@ class BacktestSettings(ImmutableModel):
     initial_cash: Decimal = Field(gt=ZERO)
     commission_bps: Decimal = Field(ge=ZERO, default=ZERO)
     slippage_bps: Decimal = Field(ge=ZERO, default=ZERO)
+    sell_tax_bps: Decimal = Field(ge=ZERO, default=ZERO)
+    max_bar_volume_share: Decimal = Field(gt=ZERO, le=ONE, default=ONE)
 
 
 class ControlSettings(ImmutableModel):
